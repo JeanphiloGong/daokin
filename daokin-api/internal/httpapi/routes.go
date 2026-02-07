@@ -12,7 +12,7 @@ import (
 	chimid "github.com/go-chi/chi/v5/middleware"
 )
 
-func Routes(logger *slog.Logger) http.Handler {
+func Routes(logger *slog.Logger, mvp *MVPHandler) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimid.RequestID)
@@ -28,6 +28,13 @@ func Routes(logger *slog.Logger) http.Handler {
 		r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"message": "pong"})
 		})
+
+		r.Post("/auth/challenge", mvp.AuthChallenge)
+		r.Post("/auth/verify", mvp.AuthVerify)
+		r.Post("/artifacts", mvp.CreateArtifact)
+		r.Get("/artifacts/{id}", mvp.GetArtifact)
+		r.Post("/daos/{id}/join", mvp.JoinDAO)
+		r.Post("/daos/{id}/leave", mvp.LeaveDAO)
 	})
 
 	return r

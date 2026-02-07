@@ -16,18 +16,20 @@ contract ArtifactRegistry {
         uint256 indexed artifactId,
         address indexed creator,
         string uri,
-        bytes32 contentHash
+        bytes32 contentHash,
+        uint256 createdAt
     );
 
     function publish(string calldata uri, bytes32 contentHash) external returns (uint256) {
         uint256 artifactId = ++totalArtifacts;
+        uint256 createdAt = block.timestamp;
         artifacts[artifactId] = Artifact({
             creator: msg.sender,
             uri: uri,
             contentHash: contentHash,
-            createdAt: block.timestamp
+            createdAt: createdAt
         });
-        emit ArtifactPublished(artifactId, msg.sender, uri, contentHash);
+        emit ArtifactPublished(artifactId, msg.sender, uri, contentHash, createdAt);
         return artifactId;
     }
 }

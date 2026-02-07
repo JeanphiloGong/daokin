@@ -15,6 +15,12 @@ go run ./cmd/api
 - `GET /healthz`
 - `GET /readyz`
 - `GET /v1/ping`
+- `POST /v1/auth/challenge`
+- `POST /v1/auth/verify`
+- `POST /v1/artifacts`
+- `GET /v1/artifacts/{id}`
+- `POST /v1/daos/{id}/join`
+- `POST /v1/daos/{id}/leave`
 
 ## Config
 

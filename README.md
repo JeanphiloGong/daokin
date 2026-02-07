@@ -48,7 +48,9 @@ npm run build
 ## Docs
 - Mission / long-term vision: `MISSION.md`
 - Project rules / guardrails: `AGENTS.md`
+- Acceptance criteria (iteration loop): `references/acceptance-criteria.md`
+- Sub-agent role boundaries: `docs/agents/roles.md`
+- MVP delivery plan: `docs/roadmap/mvp.md`
 
 ## License
 TBD.
-
