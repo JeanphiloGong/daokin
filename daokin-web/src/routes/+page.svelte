@@ -1,212 +1,118 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import StepCard from '$lib/features/mvp/components/StepCard.svelte';
-	import { createApiClient } from '$lib/features/mvp/api/client';
-	import { ApiError } from '$lib/features/mvp/types';
-	import type {
-		Artifact,
-		AttributionRecord,
-		AuthSession,
-		DaoMembership,
-		DaoSummary,
-		StepStatus,
-		TipPayment
-	} from '$lib/features/mvp/types';
+	import { derived } from 'svelte/store';
 
-	type StepKey = 'walletAuth' | 'createArtifact' | 'joinDao' | 'tipPay' | 'viewAttribution';
-	interface StepState {
-		status: StepStatus;
-		error: string;
-	}
+	import { createApiClient } from '$lib/features/mvp/api/client';
+	import StepCard from '$lib/features/mvp/components/StepCard.svelte';
+	import { createArtifactStore } from '$lib/features/mvp/stores/artifactStore';
+	import { createAuthStore } from '$lib/features/mvp/stores/authStore';
+	import { createDaoStore } from '$lib/features/mvp/stores/daoStore';
+	import { createPaymentStore } from '$lib/features/mvp/stores/paymentStore';
 
 	const api = createApiClient({ mode: 'mock' });
 
-	const state = $state({
-		globalError: '',
-		walletAddress: '0xabc12345',
-		session: null as AuthSession | null,
-		artifactTitle: 'My First Dao Artifact',
-		artifactDescription: 'A simple manifesto draft for contributor-owned communities.',
-		artifact: null as Artifact | null,
-		daos: [] as DaoSummary[],
-		selectedDaoId: '',
-		membership: null as DaoMembership | null,
-		tipAmount: '1.00',
-		tip: null as TipPayment | null,
-		attributions: [] as AttributionRecord[],
-		steps: {
-			walletAuth: { status: 'idle', error: '' },
-			createArtifact: { status: 'idle', error: '' },
-			joinDao: { status: 'idle', error: '' },
-			tipPay: { status: 'idle', error: '' },
-			viewAttribution: { status: 'idle', error: '' }
-		} as Record<StepKey, StepState>
-	});
+	const authStore = createAuthStore();
+	const artifactStore = createArtifactStore();
+	const daoStore = createDaoStore();
+	const paymentStore = createPaymentStore();
 
-	const selectedDao = $derived(state.daos.find((dao) => dao.id === state.selectedDaoId) ?? null);
-	const canCreateArtifact = $derived(Boolean(state.session));
-	const canJoinDao = $derived(Boolean(state.session && state.artifact && state.selectedDaoId));
-	const canTip = $derived(Boolean(state.session && state.membership && state.artifact));
-	const canViewAttribution = $derived(Boolean(state.artifact));
+	const selectedDao = derived(
+		daoStore,
+		($daoStore) => $daoStore.daos.find((dao) => dao.id === $daoStore.selectedDaoId) ?? null
+	);
+	const canCreateArtifact = derived(authStore, ($authStore) => Boolean($authStore.session));
+	const canJoinDao = derived(
+		[authStore, artifactStore, daoStore],
+		([$authStore, $artifactStore, $daoStore]) =>
+			Boolean($authStore.session && $artifactStore.artifact && $daoStore.selectedDaoId)
+	);
+	const canTip = derived(
+		[authStore, artifactStore, daoStore],
+		([$authStore, $artifactStore, $daoStore]) =>
+			Boolean($authStore.session && $artifactStore.artifact && $daoStore.membership)
+	);
+	const canViewAttribution = derived(artifactStore, ($artifactStore) =>
+		Boolean($artifactStore.artifact)
+	);
 
 	onMount(async () => {
-		await loadDaos();
+		await daoStore.loadDaos(api);
 	});
-
-	function resetDownstream(from: StepKey): void {
-		const order: StepKey[] = [
-			'walletAuth',
-			'createArtifact',
-			'joinDao',
-			'tipPay',
-			'viewAttribution'
-		];
-		const index = order.indexOf(from);
-		for (const step of order.slice(index + 1)) {
-			state.steps[step] = { status: 'idle', error: '' };
-		}
-		if (from === 'walletAuth') {
-			state.artifact = null;
-			state.membership = null;
-			state.tip = null;
-			state.attributions = [];
-		}
-		if (from === 'createArtifact') {
-			state.membership = null;
-			state.tip = null;
-			state.attributions = [];
-		}
-		if (from === 'joinDao') {
-			state.tip = null;
-		}
-	}
-
-	function setStep(step: StepKey, status: StepStatus, error = ''): void {
-		state.steps[step] = { status, error };
-	}
-
-	function toErrorMessage(error: unknown): string {
-		if (error instanceof ApiError) {
-			return error.message;
-		}
-		if (error instanceof Error) {
-			return error.message;
-		}
-		return 'Unexpected error. Please retry.';
-	}
-
-	async function loadDaos(): Promise<void> {
-		try {
-			const daos = await api.dao.list();
-			state.daos = daos;
-			if (!state.selectedDaoId && daos.length > 0) {
-				state.selectedDaoId = daos[0].id;
-			}
-			state.globalError = '';
-		} catch (error) {
-			state.globalError = `Failed to load DAO options: ${toErrorMessage(error)}`;
-		}
-	}
 
 	async function connectWallet(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		setStep('walletAuth', 'loading');
-		try {
-			state.session = await api.auth.walletConnect(state.walletAddress);
-			setStep('walletAuth', 'success');
-			resetDownstream('walletAuth');
-		} catch (error) {
-			setStep('walletAuth', 'error', toErrorMessage(error));
+		const connected = await authStore.connectWallet(api);
+		if (!connected) {
+			return;
 		}
+
+		artifactStore.resetForWalletChange();
+		daoStore.resetForWalletChange();
+		paymentStore.resetForWalletChange();
 	}
 
 	async function createArtifact(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		if (!state.session) {
-			setStep('createArtifact', 'error', 'Connect wallet before creating artifacts.');
+		const session = $authStore.session;
+		if (!session) {
+			artifactStore.setError('Connect wallet before creating artifacts.');
 			return;
 		}
 
-		setStep('createArtifact', 'loading');
-		try {
-			state.artifact = await api.artifact.create({
-				title: state.artifactTitle,
-				description: state.artifactDescription,
-				creatorId: state.session.userId
-			});
-			setStep('createArtifact', 'success');
-			resetDownstream('createArtifact');
-		} catch (error) {
-			setStep('createArtifact', 'error', toErrorMessage(error));
+		const created = await artifactStore.createArtifact(api, session.userId);
+		if (!created) {
+			return;
 		}
+
+		daoStore.resetForArtifactChange();
+		paymentStore.resetForArtifactChange();
 	}
 
 	async function joinDao(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		if (!state.session || !state.artifact) {
-			setStep('joinDao', 'error', 'Create an artifact before joining a DAO.');
-			return;
-		}
-		if (!state.selectedDaoId) {
-			setStep('joinDao', 'error', 'Pick a DAO first.');
+		const session = $authStore.session;
+		const artifact = $artifactStore.artifact;
+		if (!session || !artifact) {
+			daoStore.setJoinError('Create an artifact before joining a DAO.');
 			return;
 		}
 
-		setStep('joinDao', 'loading');
-		try {
-			state.membership = await api.dao.join({
-				daoId: state.selectedDaoId,
-				userId: state.session.userId,
-				artifactId: state.artifact.id
-			});
-			setStep('joinDao', 'success');
-			resetDownstream('joinDao');
-		} catch (error) {
-			setStep('joinDao', 'error', toErrorMessage(error));
+		const joined = await daoStore.joinDao(api, session.userId, artifact.id);
+		if (!joined) {
+			return;
 		}
+
+		paymentStore.resetForJoinChange();
 	}
 
 	async function tipPay(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		if (!state.session || !state.artifact || !state.membership) {
-			setStep('tipPay', 'error', 'Join DAO before tipping.');
+
+		const session = $authStore.session;
+		const artifact = $artifactStore.artifact;
+		const membership = $daoStore.membership;
+		if (!session || !artifact || !membership) {
+			paymentStore.setTipError('Join DAO before tipping.');
 			return;
 		}
 
-		const amount = Number.parseFloat(state.tipAmount);
-		if (!Number.isFinite(amount) || amount <= 0) {
-			setStep('tipPay', 'error', 'Tip amount must be a positive number.');
-			return;
-		}
-
-		setStep('tipPay', 'loading');
-		try {
-			const stewardRecord = state.attributions.find((item) => item.role === 'dao steward');
-			state.tip = await api.payment.tip({
-				artifactId: state.artifact.id,
-				fromUserId: state.session.userId,
-				toUserId: stewardRecord?.contributorId ?? `${state.membership.daoId}-treasury`,
-				amount
-			});
-			setStep('tipPay', 'success');
-		} catch (error) {
-			setStep('tipPay', 'error', toErrorMessage(error));
-		}
+		const stewardRecord = $paymentStore.attributions.find((item) => item.role === 'dao steward');
+		const toUserId = stewardRecord?.contributorId ?? `${membership.daoId}-treasury`;
+		await paymentStore.tipPay(api, {
+			artifactId: artifact.id,
+			fromUserId: session.userId,
+			toUserId
+		});
 	}
 
 	async function viewAttribution(): Promise<void> {
-		if (!state.artifact) {
-			setStep('viewAttribution', 'error', 'Create an artifact first.');
+		const artifact = $artifactStore.artifact;
+		if (!artifact) {
+			paymentStore.setAttributionError('Create an artifact first.');
 			return;
 		}
 
-		setStep('viewAttribution', 'loading');
-		try {
-			state.attributions = await api.attribution.listByArtifact(state.artifact.id);
-			setStep('viewAttribution', 'success');
-		} catch (error) {
-			setStep('viewAttribution', 'error', toErrorMessage(error));
-		}
+		await paymentStore.loadAttributions(api, artifact.id);
 	}
 </script>
 
@@ -221,126 +127,179 @@
 		<p class="mode-note">API mode: mock (v1 endpoints already defined in client)</p>
 	</header>
 
-	{#if state.globalError}
-		<p class="global-error" role="alert">{state.globalError}</p>
+	{#if $daoStore.globalError}
+		<p class="global-error" role="alert">{$daoStore.globalError}</p>
 	{/if}
 
 	<section class="step-stack">
 		<StepCard
 			title="1) Wallet auth"
 			description="Connect wallet and establish a simple user session."
-			status={state.steps.walletAuth.status}
-			error={state.steps.walletAuth.error}
+			status={$authStore.step.status}
+			error={$authStore.step.error}
 		>
-			<form class="stack-form" onsubmit={connectWallet}>
+			<form
+				class="stack-form"
+				onsubmit={connectWallet}
+				aria-busy={$authStore.step.status === 'loading'}
+			>
 				<label>
 					<span>Wallet address</span>
-					<input type="text" bind:value={state.walletAddress} placeholder="0xabc12345" required />
+					<input
+						type="text"
+						value={$authStore.walletAddress}
+						oninput={(event) =>
+							authStore.setWalletAddress((event.currentTarget as HTMLInputElement).value)}
+						placeholder="0xabc12345"
+						required
+					/>
 				</label>
-				<button type="submit" disabled={state.steps.walletAuth.status === 'loading'}>
+				<button type="submit" disabled={$authStore.step.status === 'loading'}>
 					Connect wallet
 				</button>
 			</form>
-			{#if state.session}
-				<p class="detail">Session: {state.session.displayName} ({state.session.userId})</p>
+			{#if $authStore.session}
+				<p class="detail">
+					Session: {$authStore.session.displayName} ({$authStore.session.userId})
+				</p>
 			{/if}
 		</StepCard>
 
 		<StepCard
 			title="2) Create artifact"
 			description="Submit title + description and receive a traceable artifact ID."
-			status={state.steps.createArtifact.status}
-			error={state.steps.createArtifact.error}
+			status={$artifactStore.step.status}
+			error={$artifactStore.step.error}
 		>
-			<form class="stack-form" onsubmit={createArtifact}>
+			<form
+				class="stack-form"
+				onsubmit={createArtifact}
+				aria-busy={$artifactStore.step.status === 'loading'}
+			>
 				<label>
 					<span>Title</span>
-					<input type="text" bind:value={state.artifactTitle} minlength="3" required />
+					<input
+						type="text"
+						value={$artifactStore.artifactTitle}
+						oninput={(event) =>
+							artifactStore.setArtifactTitle((event.currentTarget as HTMLInputElement).value)}
+						minlength="3"
+						required
+					/>
 				</label>
 				<label>
 					<span>Description</span>
-					<textarea bind:value={state.artifactDescription} rows="3"></textarea>
+					<textarea
+						value={$artifactStore.artifactDescription}
+						oninput={(event) =>
+							artifactStore.setArtifactDescription(
+								(event.currentTarget as HTMLTextAreaElement).value
+							)}
+						rows="3"
+					></textarea>
 				</label>
 				<button
 					type="submit"
-					disabled={!canCreateArtifact || state.steps.createArtifact.status === 'loading'}
+					disabled={!$canCreateArtifact || $artifactStore.step.status === 'loading'}
 				>
 					Create artifact
 				</button>
 			</form>
-			{#if state.artifact}
-				<p class="detail">Artifact ID: {state.artifact.id}</p>
+			{#if $artifactStore.artifact}
+				<p class="detail">Artifact ID: {$artifactStore.artifact.id}</p>
 			{/if}
 		</StepCard>
 
 		<StepCard
 			title="3) Join DAO"
 			description="Join a DAO circle so artifact contribution can be contextualized."
-			status={state.steps.joinDao.status}
-			error={state.steps.joinDao.error}
+			status={$daoStore.joinStep.status}
+			error={$daoStore.joinStep.error}
 		>
-			<form class="stack-form" onsubmit={joinDao}>
+			<form
+				class="stack-form"
+				onsubmit={joinDao}
+				aria-busy={$daoStore.joinStep.status === 'loading'}
+			>
 				<label>
 					<span>DAO</span>
-					<select bind:value={state.selectedDaoId} required>
-						{#each state.daos as dao}
+					<select
+						value={$daoStore.selectedDaoId}
+						onchange={(event) =>
+							daoStore.setSelectedDaoId((event.currentTarget as HTMLSelectElement).value)}
+						required
+					>
+						{#each $daoStore.daos as dao (dao.id)}
 							<option value={dao.id}>{dao.name}</option>
 						{/each}
 					</select>
 				</label>
-				<button type="submit" disabled={!canJoinDao || state.steps.joinDao.status === 'loading'}>
+				<button type="submit" disabled={!$canJoinDao || $daoStore.joinStep.status === 'loading'}>
 					Join DAO
 				</button>
 			</form>
-			{#if state.membership}
-				<p class="detail">Joined: {selectedDao?.name ?? state.membership.daoId}</p>
+			{#if $daoStore.membership}
+				<p class="detail">Joined: {$selectedDao?.name ?? $daoStore.membership.daoId}</p>
 			{/if}
 		</StepCard>
 
 		<StepCard
 			title="4) Tip / pay"
 			description="Send a small payment to test value flow after joining a DAO."
-			status={state.steps.tipPay.status}
-			error={state.steps.tipPay.error}
+			status={$paymentStore.tipStep.status}
+			error={$paymentStore.tipStep.error}
 		>
-			<form class="stack-form" onsubmit={tipPay}>
+			<form
+				class="stack-form"
+				onsubmit={tipPay}
+				aria-busy={$paymentStore.tipStep.status === 'loading'}
+			>
 				<label>
 					<span>Amount (USDC)</span>
-					<input type="number" min="0.01" step="0.01" bind:value={state.tipAmount} required />
+					<input
+						type="number"
+						min="0.01"
+						step="0.01"
+						value={$paymentStore.tipAmount}
+						oninput={(event) =>
+							paymentStore.setTipAmount((event.currentTarget as HTMLInputElement).value)}
+						required
+					/>
 				</label>
-				<button type="submit" disabled={!canTip || state.steps.tipPay.status === 'loading'}
-					>Send tip</button
-				>
+				<button type="submit" disabled={!$canTip || $paymentStore.tipStep.status === 'loading'}>
+					Send tip
+				</button>
 			</form>
-			{#if state.tip}
-				<p class="detail">Payment confirmed: {state.tip.paymentId}</p>
+			{#if $paymentStore.tip}
+				<p class="detail">Payment confirmed: {$paymentStore.tip.paymentId}</p>
 			{/if}
 		</StepCard>
 
 		<StepCard
 			title="5) View attribution"
 			description="Fetch attribution records to verify ownership and contributor shares."
-			status={state.steps.viewAttribution.status}
-			error={state.steps.viewAttribution.error}
+			status={$paymentStore.attributionStep.status}
+			error={$paymentStore.attributionStep.error}
 		>
-			<button type="button" onclick={viewAttribution} disabled={!canViewAttribution}
+			<button type="button" onclick={viewAttribution} disabled={!$canViewAttribution}
 				>Refresh attribution</button
 			>
 
-			{#if state.attributions.length === 0}
+			{#if $paymentStore.attributions.length === 0}
 				<p class="detail">No attribution loaded yet.</p>
 			{:else}
 				<table class="attribution-table">
+					<caption class="sr-only">Attribution contributors and share percentages</caption>
 					<thead>
 						<tr>
-							<th>Contributor</th>
-							<th>Role</th>
-							<th>Wallet</th>
-							<th>Share</th>
+							<th scope="col">Contributor</th>
+							<th scope="col">Role</th>
+							<th scope="col">Wallet</th>
+							<th scope="col">Share</th>
 						</tr>
 					</thead>
 					<tbody>
-						{#each state.attributions as item}
+						{#each $paymentStore.attributions as item (item.contributorId + item.role)}
 							<tr>
 								<td>{item.contributorName}</td>
 								<td>{item.role}</td>
@@ -356,16 +315,10 @@
 </main>
 
 <style>
-	:global(body) {
-		background: #f8fafc;
-		color: #0f172a;
-		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-	}
-
 	.page-shell {
 		max-width: 960px;
 		margin: 0 auto;
-		padding: 2rem 1rem 2.5rem;
+		padding: var(--space-6) var(--space-4) calc(var(--space-6) + 0.5rem);
 	}
 
 	.page-header h1 {
@@ -375,37 +328,37 @@
 
 	.page-header p {
 		margin: 0.45rem 0 0;
-		color: #334155;
+		color: var(--color-pill-neutral-text);
 	}
 
 	.mode-note {
 		font-size: 0.9rem;
-		color: #475569;
+		color: var(--color-text-muted);
 	}
 
 	.global-error {
-		margin: 1rem 0;
+		margin: var(--space-4) 0;
 		padding: 0.75rem 0.9rem;
-		border: 1px solid #fecaca;
-		background: #fee2e2;
+		border: 1px solid var(--color-error-border);
+		background: var(--color-error-bg);
 		border-radius: 0.55rem;
-		color: #991b1b;
+		color: var(--color-error-text);
 	}
 
 	.step-stack {
 		display: grid;
 		gap: 0.9rem;
-		margin-top: 1.25rem;
+		margin-top: var(--space-5);
 	}
 
 	.stack-form {
 		display: grid;
-		gap: 0.65rem;
+		gap: var(--space-2);
 	}
 
 	label {
 		display: grid;
-		gap: 0.35rem;
+		gap: var(--space-1);
 		font-size: 0.9rem;
 		font-weight: 600;
 	}
@@ -420,19 +373,20 @@
 	input,
 	textarea,
 	select {
-		border: 1px solid #cbd5e1;
-		border-radius: 0.5rem;
+		border: 1px solid var(--color-border-strong);
+		border-radius: var(--radius-sm);
 		padding: 0.55rem 0.65rem;
-		background: #ffffff;
+		background: var(--color-surface);
+		color: var(--color-text);
 	}
 
 	button {
 		width: fit-content;
 		padding: 0.5rem 0.8rem;
-		border-radius: 0.5rem;
-		border: 1px solid #0f172a;
-		background: #0f172a;
-		color: #ffffff;
+		border-radius: var(--radius-sm);
+		border: 1px solid var(--color-primary);
+		background: var(--color-primary);
+		color: var(--color-primary-contrast);
 		font-weight: 600;
 		cursor: pointer;
 	}
@@ -444,7 +398,7 @@
 
 	.detail {
 		font-size: 0.88rem;
-		color: #334155;
+		color: var(--color-pill-neutral-text);
 	}
 
 	.attribution-table {
@@ -457,12 +411,24 @@
 	.attribution-table td {
 		text-align: left;
 		padding: 0.45rem 0.35rem;
-		border-bottom: 1px solid #e2e8f0;
+		border-bottom: 1px solid var(--color-pill-neutral-bg);
+	}
+
+	.sr-only {
+		border: 0;
+		clip: rect(0 0 0 0);
+		height: 1px;
+		margin: -1px;
+		overflow: hidden;
+		padding: 0;
+		position: absolute;
+		white-space: nowrap;
+		width: 1px;
 	}
 
 	@media (max-width: 640px) {
 		.page-shell {
-			padding-top: 1.25rem;
+			padding-top: var(--space-5);
 		}
 
 		button {

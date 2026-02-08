@@ -1,4 +1,10 @@
 export type StepStatus = 'idle' | 'loading' | 'success' | 'error';
+export type StepKey = 'walletAuth' | 'createArtifact' | 'joinDao' | 'tipPay' | 'viewAttribution';
+
+export interface StepState {
+	status: StepStatus;
+	error: string;
+}
 
 export interface DaoSummary {
 	id: string;
@@ -75,11 +81,21 @@ export type ApiMode = 'mock' | 'http';
 export class ApiError extends Error {
 	status?: number;
 	details?: unknown;
+	code?: string;
+	requestId?: string;
 
-	constructor(message: string, status?: number, details?: unknown) {
+	constructor(
+		message: string,
+		status?: number,
+		details?: unknown,
+		code?: string,
+		requestId?: string
+	) {
 		super(message);
 		this.name = 'ApiError';
 		this.status = status;
 		this.details = details;
+		this.code = code;
+		this.requestId = requestId;
 	}
 }
