@@ -2,12 +2,23 @@
 
 Minimal Go + Chi API skeleton for DaoKin.
 
+## Layering
+
+- `internal/domain`: domain models and invariants
+- `internal/app/ports/in`: input ports (use-case contracts for interfaces)
+- `internal/app/ports/out`: output ports (repository contracts)
+- `internal/app/usecases`: application use-cases
+- `internal/interfaces/http`: HTTP transport interface
+- `internal/interfaces/grpc`: gRPC transport placeholder
+- `internal/infra/persistence`: persistence adapters (current: memory)
+- `internal/infra/messaging`: messaging adapter placeholder
+
 ## Quick start
 
 ```bash
 cd daokin-api
 
-go run ./cmd/api
+go run ./cmd/server
 ```
 
 ## Endpoints

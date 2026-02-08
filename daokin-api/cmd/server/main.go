@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"daokin-api/internal/config"
-	"daokin-api/internal/httpapi"
+	httpiface "daokin-api/internal/interfaces/http"
 	"daokin-api/internal/logger"
 )
 
@@ -17,7 +17,7 @@ func main() {
 	cfg := config.Load()
 	log := logger.New(cfg.Env)
 
-	srv := httpapi.NewServer(cfg, log)
+	srv := httpiface.NewServer(cfg, log)
 
 	errCh := make(chan error, 1)
 	go func() {

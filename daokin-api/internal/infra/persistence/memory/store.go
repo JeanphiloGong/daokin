@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"daokin-api/internal/app/ports/out"
 	"daokin-api/internal/domain"
-	"daokin-api/internal/repository"
 )
 
 var (
-	_ repository.AuthRepository       = (*Store)(nil)
-	_ repository.ArtifactRepository   = (*Store)(nil)
-	_ repository.MembershipRepository = (*Store)(nil)
+	_ outport.AuthRepository       = (*Store)(nil)
+	_ outport.ArtifactRepository   = (*Store)(nil)
+	_ outport.MembershipRepository = (*Store)(nil)
 )
 
 type Store struct {

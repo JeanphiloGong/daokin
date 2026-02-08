@@ -1,12 +1,12 @@
-package httpapi
+package httpiface
 
 import (
 	"log/slog"
 	"net/http"
 	"time"
 
-	"daokin-api/internal/httpapi/handlers"
-	appmw "daokin-api/internal/httpapi/middleware"
+	"daokin-api/internal/interfaces/http/handlers"
+	appmw "daokin-api/internal/interfaces/http/middleware"
 
 	"github.com/go-chi/chi/v5"
 	chimid "github.com/go-chi/chi/v5/middleware"

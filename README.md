@@ -35,7 +35,7 @@ npm run dev
 ### API
 ```bash
 cd daokin-api
-go run ./cmd/api
+go run ./cmd/server
 ```
 
 ### Contracts

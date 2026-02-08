@@ -1,4 +1,4 @@
-package httpapi
+package httpiface
 
 import (
 	"encoding/json"
