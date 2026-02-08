@@ -6,6 +6,7 @@ Minimal contracts to bootstrap DaoKin MVP.
 
 - `ArtifactRegistry`: publish artifacts (URI + content hash) with on-chain provenance.
 - `TipJar`: native or ERC20 tips attributed to a specific artifact + recipient.
+- `ReentrantRecipient` (test helper): adversarial contract for reentrancy checks in tests.
 
 ## Quick start
 
@@ -20,8 +21,13 @@ npm run build
 
 Functions:
 - `publish(string uri, bytes32 contentHash) returns (uint256 artifactId)`
+- `exists(uint256 artifactId) view returns (bool)`
 - `totalArtifacts() view returns (uint256)`
 - `artifacts(uint256 artifactId) view returns (address creator, string uri, bytes32 contentHash, uint256 createdAt)`
+
+Errors:
+- `InvalidURI()`
+- `InvalidContentHash()`
 
 Events:
 - `ArtifactPublished(uint256 indexed artifactId, address indexed creator, string uri, bytes32 contentHash, uint256 createdAt)`
@@ -32,11 +38,16 @@ Events:
 Functions:
 - `tipNative(uint256 artifactId, address to, string memo)` payable
 - `tipToken(uint256 artifactId, address token, address to, uint256 amount, string memo)`
+- `artifactRegistry() view returns (address)`
 
 Errors:
 - `InvalidArtifactId()`
+- `ArtifactNotFound()`
+- `InvalidRegistry()`
 - `InvalidRecipient()`
 - `InvalidAmount()`
+- `InvalidToken()`
+- `ReentrancyBlocked()`
 - `TransferFailed()`
 
 Events:
@@ -47,7 +58,7 @@ Events:
 
 ```js
 const registry = await ethers.deployContract("ArtifactRegistry");
-const tipJar = await ethers.deployContract("TipJar");
+const tipJar = await ethers.deployContract("TipJar", [await registry.getAddress()]);
 
 const contentHash = ethers.keccak256(ethers.toUtf8Bytes("artifact-v1"));
 const publishTx = await registry.publish("ipfs://bafy.../artifact.json", contentHash);
@@ -74,4 +85,6 @@ await tipJar.tipToken(
 ## Notes
 
 - Keep artifact data off-chain (IPFS/Arweave), anchor provenance with `uri + contentHash + createdAt`.
-- MVP value exchange should avoid speculative token logic and prioritize clear attribution.
+- `TipJar` verifies artifact existence against `ArtifactRegistry` before transfer.
+- `TipJar` uses a non-reentrancy guard on native and token tip paths.
+- MVP value exchange avoids speculative token logic and prioritizes clear attribution.
