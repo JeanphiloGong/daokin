@@ -8,13 +8,14 @@ import (
 	identityuc "daokin-api/internal/app/usecases/identity"
 	membershipuc "daokin-api/internal/app/usecases/membership"
 	"daokin-api/internal/config"
+	"daokin-api/internal/infra/crypto/ethsign"
 	"daokin-api/internal/infra/persistence/memory"
 )
 
 func NewServer(cfg config.Config, logger *slog.Logger) *http.Server {
 	store := memory.NewStore()
 	mvp := NewMVPHandler(
-		identityuc.NewCommandService(store),
+		identityuc.NewCommandService(store, ethsign.NewPersonalSignVerifier()),
 		artifactuc.NewCommandService(store),
 		artifactuc.NewQueryService(store),
 		membershipuc.NewCommandService(store),

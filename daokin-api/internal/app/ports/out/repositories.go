@@ -10,8 +10,14 @@ import (
 type AuthRepository interface {
 	SaveChallenge(ctx context.Context, challenge domain.AuthChallenge) error
 	GetChallenge(ctx context.Context, wallet string) (domain.AuthChallenge, error)
+	ConsumeChallenge(ctx context.Context, wallet string) (domain.AuthChallenge, error)
 	DeleteChallenge(ctx context.Context, wallet string) error
 	SaveSession(ctx context.Context, session domain.AuthSession) error
+	GetSession(ctx context.Context, wallet string) (domain.AuthSession, error)
+}
+
+type SignatureVerifier interface {
+	VerifyWalletSignature(ctx context.Context, wallet, message, signature string) error
 }
 
 type ArtifactRepository interface {

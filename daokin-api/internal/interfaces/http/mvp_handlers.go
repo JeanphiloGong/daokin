@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"daokin-api/internal/app/ports/in"
 	"daokin-api/internal/domain"
@@ -88,6 +89,10 @@ func (h *MVPHandler) CreateArtifact(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if err := h.authorizeWallet(r, req.CreatorWallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	artifact, err := h.artifactCommands.CreateArtifact(
 		r.Context(),
@@ -122,6 +127,10 @@ func (h *MVPHandler) JoinDAO(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if err := h.authorizeWallet(r, req.Wallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	membership, err := h.membershipCommands.JoinDAO(r.Context(), chi.URLParam(r, "id"), req.Wallet)
 	if err != nil {
@@ -141,6 +150,10 @@ func (h *MVPHandler) LeaveDAO(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	if err := h.authorizeWallet(r, req.Wallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	membership, err := h.membershipCommands.LeaveDAO(r.Context(), chi.URLParam(r, "id"), req.Wallet, req.Reason)
 	if err != nil {
@@ -149,6 +162,27 @@ func (h *MVPHandler) LeaveDAO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, membership)
+}
+
+func (h *MVPHandler) authorizeWallet(r *http.Request, wallet string) error {
+	token, err := bearerToken(r.Header.Get("Authorization"))
+	if err != nil {
+		return domain.ErrUnauthorized
+	}
+	return h.authCommands.ValidateSession(r.Context(), wallet, token)
+}
+
+func bearerToken(header string) (string, error) {
+	header = strings.TrimSpace(header)
+	if header == "" {
+		return "", domain.ErrUnauthorized
+	}
+
+	parts := strings.Fields(header)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
+		return "", domain.ErrUnauthorized
+	}
+	return parts[1], nil
 }
 
 func writeDomainError(w http.ResponseWriter, err error, fallback string) {

@@ -55,6 +55,19 @@ func (s *Store) GetChallenge(_ context.Context, wallet string) (domain.AuthChall
 	return challenge, nil
 }
 
+func (s *Store) ConsumeChallenge(_ context.Context, wallet string) (domain.AuthChallenge, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	key := normalizeWallet(wallet)
+	challenge, ok := s.challenges[key]
+	if !ok {
+		return domain.AuthChallenge{}, domain.ErrNotFound
+	}
+	delete(s.challenges, key)
+	return challenge, nil
+}
+
 func (s *Store) DeleteChallenge(_ context.Context, wallet string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -69,6 +82,17 @@ func (s *Store) SaveSession(_ context.Context, session domain.AuthSession) error
 
 	s.sessions[normalizeWallet(session.Wallet)] = session
 	return nil
+}
+
+func (s *Store) GetSession(_ context.Context, wallet string) (domain.AuthSession, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	session, ok := s.sessions[normalizeWallet(wallet)]
+	if !ok {
+		return domain.AuthSession{}, domain.ErrNotFound
+	}
+	return session, nil
 }
 
 func (s *Store) Create(_ context.Context, artifact domain.Artifact) (domain.Artifact, error) {

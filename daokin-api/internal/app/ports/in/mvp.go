@@ -9,6 +9,7 @@ import (
 type AuthCommands interface {
 	CreateChallenge(ctx context.Context, wallet string) (domain.AuthChallenge, error)
 	VerifyChallenge(ctx context.Context, wallet, nonce, signature string) (domain.AuthSession, error)
+	ValidateSession(ctx context.Context, wallet, accessToken string) error
 }
 
 type ArtifactCommands interface {

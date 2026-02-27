@@ -33,6 +33,12 @@ go run ./cmd/server
 - `POST /v1/daos/{id}/join`
 - `POST /v1/daos/{id}/leave`
 
+## Auth notes (MVP)
+
+- `POST /v1/auth/challenge` issues a nonce message for wallet signing.
+- `POST /v1/auth/verify` expects a `personal_sign` (EIP-191) signature of the returned message.
+- Write endpoints currently require `Authorization: Bearer <access_token>` and wallet must match the verified session.
+
 ## Config
 
 Environment variables (defaults shown):

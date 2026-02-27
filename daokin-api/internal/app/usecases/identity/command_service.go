@@ -3,6 +3,7 @@ package identity
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,14 +15,16 @@ import (
 )
 
 type CommandService struct {
-	repo outport.AuthRepository
-	now  func() time.Time
+	repo     outport.AuthRepository
+	verifier outport.SignatureVerifier
+	now      func() time.Time
 }
 
-func NewCommandService(repo outport.AuthRepository) *CommandService {
+func NewCommandService(repo outport.AuthRepository, verifier outport.SignatureVerifier) *CommandService {
 	return &CommandService{
-		repo: repo,
-		now:  time.Now,
+		repo:     repo,
+		verifier: verifier,
+		now:      time.Now,
 	}
 }
 
@@ -61,13 +64,23 @@ func (s *CommandService) VerifyChallenge(
 		return domain.AuthSession{}, domain.ErrInvalidArgument
 	}
 
-	challenge, err := s.repo.GetChallenge(ctx, wallet)
+	challenge, err := s.repo.ConsumeChallenge(ctx, wallet)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.AuthSession{}, domain.ErrUnauthorized
+		}
 		return domain.AuthSession{}, err
 	}
 
 	if err := challenge.Verify(nonce, s.now()); err != nil {
 		if errors.Is(err, domain.ErrChallengeInvalid) {
+			return domain.AuthSession{}, domain.ErrUnauthorized
+		}
+		return domain.AuthSession{}, err
+	}
+
+	if err := s.verifier.VerifyWalletSignature(ctx, wallet, challenge.Message, signature); err != nil {
+		if errors.Is(err, domain.ErrInvalidArgument) || errors.Is(err, domain.ErrUnauthorized) {
 			return domain.AuthSession{}, domain.ErrUnauthorized
 		}
 		return domain.AuthSession{}, err
@@ -86,8 +99,31 @@ func (s *CommandService) VerifyChallenge(
 	if err := s.repo.SaveSession(ctx, session); err != nil {
 		return domain.AuthSession{}, err
 	}
-	_ = s.repo.DeleteChallenge(ctx, wallet)
 	return session, nil
+}
+
+func (s *CommandService) ValidateSession(ctx context.Context, wallet string, accessToken string) error {
+	wallet = strings.TrimSpace(wallet)
+	accessToken = strings.TrimSpace(accessToken)
+	if wallet == "" || accessToken == "" {
+		return domain.ErrInvalidArgument
+	}
+
+	session, err := s.repo.GetSession(ctx, wallet)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.ErrUnauthorized
+		}
+		return err
+	}
+
+	if !strings.EqualFold(session.Wallet, wallet) {
+		return domain.ErrUnauthorized
+	}
+	if subtle.ConstantTimeCompare([]byte(session.AccessToken), []byte(accessToken)) != 1 {
+		return domain.ErrUnauthorized
+	}
+	return nil
 }
 
 func randomHex(size int) (string, error) {
