@@ -30,14 +30,20 @@ go run ./cmd/server
 - `POST /v1/auth/verify`
 - `POST /v1/artifacts`
 - `GET /v1/artifacts/{id}`
+- `GET /v1/artifacts/{id}/attribution`
 - `POST /v1/daos/{id}/join`
 - `POST /v1/daos/{id}/leave`
+- `POST /v1/permissions`
+- `POST /v1/permissions/{id}/revoke`
+- `POST /v1/transfers`
+- `GET /v1/users/{wallet}/export`
 
 ## Auth notes (MVP)
 
 - `POST /v1/auth/challenge` issues a nonce message for wallet signing.
 - `POST /v1/auth/verify` expects a `personal_sign` (EIP-191) signature of the returned message.
 - Write endpoints currently require `Authorization: Bearer <access_token>` and wallet must match the verified session.
+- Permission and transfer flows are recorded off-chain for MVP attribution trail queries.
 
 ## Config
 

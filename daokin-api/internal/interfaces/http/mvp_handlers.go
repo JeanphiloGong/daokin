@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"daokin-api/internal/app/ports/in"
+	inport "daokin-api/internal/app/ports/in"
 	"daokin-api/internal/domain"
 
 	"github.com/go-chi/chi/v5"
@@ -18,6 +18,10 @@ type MVPHandler struct {
 	artifactCommands   inport.ArtifactCommands
 	artifactQueries    inport.ArtifactQueries
 	membershipCommands inport.MembershipCommands
+	permissionCommands inport.PermissionCommands
+	exchangeCommands   inport.ExchangeCommands
+	attributionQueries inport.AttributionQueries
+	userExportQueries  inport.UserExportQueries
 }
 
 func NewMVPHandler(
@@ -25,12 +29,20 @@ func NewMVPHandler(
 	artifactCommands inport.ArtifactCommands,
 	artifactQueries inport.ArtifactQueries,
 	membershipCommands inport.MembershipCommands,
+	permissionCommands inport.PermissionCommands,
+	exchangeCommands inport.ExchangeCommands,
+	attributionQueries inport.AttributionQueries,
+	userExportQueries inport.UserExportQueries,
 ) *MVPHandler {
 	return &MVPHandler{
 		authCommands:       authCommands,
 		artifactCommands:   artifactCommands,
 		artifactQueries:    artifactQueries,
 		membershipCommands: membershipCommands,
+		permissionCommands: permissionCommands,
+		exchangeCommands:   exchangeCommands,
+		attributionQueries: attributionQueries,
+		userExportQueries:  userExportQueries,
 	}
 }
 
@@ -74,6 +86,7 @@ func (h *MVPHandler) AuthVerify(w http.ResponseWriter, r *http.Request) {
 		writeDomainError(w, err, "failed to verify challenge")
 		return
 	}
+	setActorHeader(w, req.Wallet)
 
 	writeJSON(w, http.StatusOK, session)
 }
@@ -93,6 +106,7 @@ func (h *MVPHandler) CreateArtifact(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	setActorHeader(w, req.CreatorWallet)
 
 	artifact, err := h.artifactCommands.CreateArtifact(
 		r.Context(),
@@ -131,6 +145,7 @@ func (h *MVPHandler) JoinDAO(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	setActorHeader(w, req.Wallet)
 
 	membership, err := h.membershipCommands.JoinDAO(r.Context(), chi.URLParam(r, "id"), req.Wallet)
 	if err != nil {
@@ -154,6 +169,7 @@ func (h *MVPHandler) LeaveDAO(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
+	setActorHeader(w, req.Wallet)
 
 	membership, err := h.membershipCommands.LeaveDAO(r.Context(), chi.URLParam(r, "id"), req.Wallet, req.Reason)
 	if err != nil {
@@ -162,6 +178,123 @@ func (h *MVPHandler) LeaveDAO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, membership)
+}
+
+func (h *MVPHandler) GrantPermission(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ArtifactID    string `json:"artifact_id"`
+		GranterWallet string `json:"granter_wallet"`
+		GranteeWallet string `json:"grantee_wallet"`
+		Scope         string `json:"scope"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.authorizeWallet(r, req.GranterWallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	setActorHeader(w, req.GranterWallet)
+
+	permission, err := h.permissionCommands.GrantPermission(
+		r.Context(),
+		req.ArtifactID,
+		req.GranterWallet,
+		req.GranteeWallet,
+		req.Scope,
+	)
+	if err != nil {
+		writeDomainError(w, err, "failed to grant permission")
+		return
+	}
+	writeJSON(w, http.StatusCreated, permission)
+}
+
+func (h *MVPHandler) RevokePermission(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		GranterWallet string `json:"granter_wallet"`
+		Reason        string `json:"reason"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.authorizeWallet(r, req.GranterWallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	setActorHeader(w, req.GranterWallet)
+
+	permission, err := h.permissionCommands.RevokePermission(
+		r.Context(),
+		chi.URLParam(r, "id"),
+		req.GranterWallet,
+		req.Reason,
+	)
+	if err != nil {
+		writeDomainError(w, err, "failed to revoke permission")
+		return
+	}
+	writeJSON(w, http.StatusOK, permission)
+}
+
+func (h *MVPHandler) RecordTransfer(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ArtifactID   string `json:"artifact_id"`
+		PayerWallet  string `json:"payer_wallet"`
+		Token        string `json:"token"`
+		AmountAtomic string `json:"amount_atomic"`
+		TxHash       string `json:"tx_hash"`
+	}
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if err := h.authorizeWallet(r, req.PayerWallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	setActorHeader(w, req.PayerWallet)
+
+	transfer, err := h.exchangeCommands.RecordTransfer(
+		r.Context(),
+		req.ArtifactID,
+		req.PayerWallet,
+		req.Token,
+		req.AmountAtomic,
+		req.TxHash,
+	)
+	if err != nil {
+		writeDomainError(w, err, "failed to record transfer")
+		return
+	}
+	writeJSON(w, http.StatusCreated, transfer)
+}
+
+func (h *MVPHandler) GetArtifactAttribution(w http.ResponseWriter, r *http.Request) {
+	trail, err := h.attributionQueries.GetArtifactTrail(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		writeDomainError(w, err, "failed to get attribution trail")
+		return
+	}
+	writeJSON(w, http.StatusOK, trail)
+}
+
+func (h *MVPHandler) ExportUserData(w http.ResponseWriter, r *http.Request) {
+	wallet := chi.URLParam(r, "wallet")
+	if err := h.authorizeWallet(r, wallet); err != nil {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	setActorHeader(w, wallet)
+
+	bundle, err := h.userExportQueries.ExportByWallet(r.Context(), wallet)
+	if err != nil {
+		writeDomainError(w, err, "failed to export user data")
+		return
+	}
+	writeJSON(w, http.StatusOK, bundle)
 }
 
 func (h *MVPHandler) authorizeWallet(r *http.Request, wallet string) error {
@@ -185,6 +318,13 @@ func bearerToken(header string) (string, error) {
 	return parts[1], nil
 }
 
+func setActorHeader(w http.ResponseWriter, wallet string) {
+	wallet = strings.TrimSpace(wallet)
+	if wallet != "" {
+		w.Header().Set("X-Actor-Wallet", strings.ToLower(wallet))
+	}
+}
+
 func writeDomainError(w http.ResponseWriter, err error, fallback string) {
 	switch {
 	case errors.Is(err, domain.ErrInvalidArgument):
@@ -195,6 +335,10 @@ func writeDomainError(w http.ResponseWriter, err error, fallback string) {
 		writeError(w, http.StatusConflict, "state conflict")
 	case errors.Is(err, domain.ErrUnauthorized):
 		writeError(w, http.StatusUnauthorized, "unauthorized")
+	case errors.Is(err, domain.ErrForbidden):
+		writeError(w, http.StatusForbidden, "forbidden")
+	case errors.Is(err, domain.ErrRuleViolation):
+		writeError(w, http.StatusUnprocessableEntity, "rule violation")
 	default:
 		writeError(w, http.StatusInternalServerError, fallback)
 	}

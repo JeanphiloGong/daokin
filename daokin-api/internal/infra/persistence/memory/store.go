@@ -15,16 +15,22 @@ var (
 	_ outport.AuthRepository       = (*Store)(nil)
 	_ outport.ArtifactRepository   = (*Store)(nil)
 	_ outport.MembershipRepository = (*Store)(nil)
+	_ outport.PermissionRepository = (*Store)(nil)
+	_ outport.TransferRepository   = (*Store)(nil)
 )
 
 type Store struct {
 	mu sync.RWMutex
 
-	challenges  map[string]domain.AuthChallenge
-	sessions    map[string]domain.AuthSession
-	artifacts   map[string]domain.Artifact
-	memberships map[string]domain.DAOMembership
-	artifactSeq int
+	challenges    map[string]domain.AuthChallenge
+	sessions      map[string]domain.AuthSession
+	artifacts     map[string]domain.Artifact
+	memberships   map[string]domain.DAOMembership
+	permissions   map[string]domain.Permission
+	transfers     map[string]domain.Transfer
+	artifactSeq   int
+	permissionSeq int
+	transferSeq   int
 }
 
 func NewStore() *Store {
@@ -33,6 +39,8 @@ func NewStore() *Store {
 		sessions:    make(map[string]domain.AuthSession),
 		artifacts:   make(map[string]domain.Artifact),
 		memberships: make(map[string]domain.DAOMembership),
+		permissions: make(map[string]domain.Permission),
+		transfers:   make(map[string]domain.Transfer),
 	}
 }
 
@@ -116,6 +124,20 @@ func (s *Store) GetByID(_ context.Context, id string) (domain.Artifact, error) {
 	return artifact, nil
 }
 
+func (s *Store) ListByCreator(_ context.Context, wallet string) ([]domain.Artifact, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	normalizedWallet := normalizeWallet(wallet)
+	artifacts := make([]domain.Artifact, 0)
+	for _, artifact := range s.artifacts {
+		if normalizeWallet(artifact.CreatorWallet) == normalizedWallet {
+			artifacts = append(artifacts, artifact)
+		}
+	}
+	return artifacts, nil
+}
+
 func (s *Store) Join(_ context.Context, membership domain.DAOMembership) (domain.DAOMembership, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -156,6 +178,153 @@ func (s *Store) Leave(_ context.Context, daoID, wallet string, leftAt time.Time,
 	current.LeaveReason = strings.TrimSpace(reason)
 	s.memberships[key] = current
 	return current, nil
+}
+
+func (s *Store) ListByWalletMemberships(_ context.Context, wallet string) ([]domain.DAOMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	normalizedWallet := normalizeWallet(wallet)
+	memberships := make([]domain.DAOMembership, 0)
+	for _, membership := range s.memberships {
+		if normalizeWallet(membership.Wallet) == normalizedWallet {
+			memberships = append(memberships, membership)
+		}
+	}
+	return memberships, nil
+}
+
+func (s *Store) Grant(_ context.Context, permission domain.Permission) (domain.Permission, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, current := range s.permissions {
+		if current.ArtifactID == permission.ArtifactID &&
+			normalizeWallet(current.GranteeWallet) == normalizeWallet(permission.GranteeWallet) &&
+			strings.EqualFold(current.Scope, permission.Scope) &&
+			current.Status == domain.PermissionStatusActive {
+			return current, nil
+		}
+	}
+
+	s.permissionSeq++
+	permission.ID = fmt.Sprintf("perm_%06d", s.permissionSeq)
+	s.permissions[permission.ID] = permission
+	return permission, nil
+}
+
+func (s *Store) Revoke(
+	_ context.Context,
+	permissionID, granterWallet string,
+	revokedAt time.Time,
+	reason string,
+) (domain.Permission, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	current, ok := s.permissions[strings.TrimSpace(permissionID)]
+	if !ok {
+		return domain.Permission{}, domain.ErrNotFound
+	}
+	if !strings.EqualFold(current.GranterWallet, strings.TrimSpace(granterWallet)) {
+		return domain.Permission{}, domain.ErrForbidden
+	}
+	if current.Status != domain.PermissionStatusActive {
+		return domain.Permission{}, domain.ErrConflict
+	}
+
+	revokedAtCopy := revokedAt.UTC()
+	current.Status = domain.PermissionStatusRevoked
+	current.RevokedAt = &revokedAtCopy
+	current.RevokeReason = strings.TrimSpace(reason)
+	s.permissions[current.ID] = current
+	return current, nil
+}
+
+func (s *Store) HasActive(_ context.Context, artifactID, granteeWallet, scope string) (bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	artifactID = strings.TrimSpace(artifactID)
+	granteeWallet = normalizeWallet(granteeWallet)
+	scope = strings.TrimSpace(scope)
+	for _, permission := range s.permissions {
+		if permission.ArtifactID == artifactID &&
+			normalizeWallet(permission.GranteeWallet) == granteeWallet &&
+			strings.EqualFold(permission.Scope, scope) &&
+			permission.Status == domain.PermissionStatusActive {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Store) ListPermissionsByArtifact(_ context.Context, artifactID string) ([]domain.Permission, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	artifactID = strings.TrimSpace(artifactID)
+	permissions := make([]domain.Permission, 0)
+	for _, permission := range s.permissions {
+		if permission.ArtifactID == artifactID {
+			permissions = append(permissions, permission)
+		}
+	}
+	return permissions, nil
+}
+
+func (s *Store) ListByWalletPermissions(_ context.Context, wallet string) ([]domain.Permission, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	normalizedWallet := normalizeWallet(wallet)
+	permissions := make([]domain.Permission, 0)
+	for _, permission := range s.permissions {
+		if normalizeWallet(permission.GranteeWallet) == normalizedWallet ||
+			normalizeWallet(permission.GranterWallet) == normalizedWallet {
+			permissions = append(permissions, permission)
+		}
+	}
+	return permissions, nil
+}
+
+func (s *Store) CreateTransfer(_ context.Context, transfer domain.Transfer) (domain.Transfer, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.transferSeq++
+	transfer.ID = fmt.Sprintf("tx_%06d", s.transferSeq)
+	s.transfers[transfer.ID] = transfer
+	return transfer, nil
+}
+
+func (s *Store) ListTransfersByArtifact(_ context.Context, artifactID string) ([]domain.Transfer, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	artifactID = strings.TrimSpace(artifactID)
+	transfers := make([]domain.Transfer, 0)
+	for _, transfer := range s.transfers {
+		if transfer.ArtifactID == artifactID {
+			transfers = append(transfers, transfer)
+		}
+	}
+	return transfers, nil
+}
+
+func (s *Store) ListByWalletTransfers(_ context.Context, wallet string) ([]domain.Transfer, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	normalizedWallet := normalizeWallet(wallet)
+	transfers := make([]domain.Transfer, 0)
+	for _, transfer := range s.transfers {
+		if normalizeWallet(transfer.PayerWallet) == normalizedWallet ||
+			normalizeWallet(transfer.RecipientWallet) == normalizedWallet {
+			transfers = append(transfers, transfer)
+		}
+	}
+	return transfers, nil
 }
 
 func normalizeWallet(wallet string) string {

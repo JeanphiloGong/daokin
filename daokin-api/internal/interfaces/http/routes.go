@@ -33,8 +33,13 @@ func Routes(logger *slog.Logger, mvp *MVPHandler) http.Handler {
 		r.Post("/auth/verify", mvp.AuthVerify)
 		r.Post("/artifacts", mvp.CreateArtifact)
 		r.Get("/artifacts/{id}", mvp.GetArtifact)
+		r.Get("/artifacts/{id}/attribution", mvp.GetArtifactAttribution)
 		r.Post("/daos/{id}/join", mvp.JoinDAO)
 		r.Post("/daos/{id}/leave", mvp.LeaveDAO)
+		r.Post("/permissions", mvp.GrantPermission)
+		r.Post("/permissions/{id}/revoke", mvp.RevokePermission)
+		r.Post("/transfers", mvp.RecordTransfer)
+		r.Get("/users/{wallet}/export", mvp.ExportUserData)
 	})
 
 	return r

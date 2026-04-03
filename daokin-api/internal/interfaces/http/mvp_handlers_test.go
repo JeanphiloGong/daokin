@@ -51,6 +51,34 @@ func (fakeMembershipCommands) LeaveDAO(context.Context, string, string, string) 
 	return domain.DAOMembership{}, nil
 }
 
+type fakePermissionCommands struct{}
+
+func (fakePermissionCommands) GrantPermission(context.Context, string, string, string, string) (domain.Permission, error) {
+	return domain.Permission{}, nil
+}
+
+func (fakePermissionCommands) RevokePermission(context.Context, string, string, string) (domain.Permission, error) {
+	return domain.Permission{}, nil
+}
+
+type fakeExchangeCommands struct{}
+
+func (fakeExchangeCommands) RecordTransfer(context.Context, string, string, string, string, string) (domain.Transfer, error) {
+	return domain.Transfer{}, nil
+}
+
+type fakeAttributionQueries struct{}
+
+func (fakeAttributionQueries) GetArtifactTrail(context.Context, string) (domain.AttributionTrail, error) {
+	return domain.AttributionTrail{}, nil
+}
+
+type fakeUserExportQueries struct{}
+
+func (fakeUserExportQueries) ExportByWallet(context.Context, string) (domain.UserExportBundle, error) {
+	return domain.UserExportBundle{}, nil
+}
+
 func TestCreateArtifactRequiresAuthorization(t *testing.T) {
 	artifactCmd := &fakeArtifactCommands{}
 	h := NewMVPHandler(
@@ -58,6 +86,10 @@ func TestCreateArtifactRequiresAuthorization(t *testing.T) {
 		artifactCmd,
 		fakeArtifactQueries{},
 		fakeMembershipCommands{},
+		fakePermissionCommands{},
+		fakeExchangeCommands{},
+		fakeAttributionQueries{},
+		fakeUserExportQueries{},
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/artifacts", strings.NewReader(`{

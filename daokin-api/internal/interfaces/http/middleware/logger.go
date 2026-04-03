@@ -17,12 +17,14 @@ func RequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(ww, r)
 
 			logger.Info("request",
+				"request_id", chimid.GetReqID(r.Context()),
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", ww.Status(),
 				"bytes", ww.BytesWritten(),
 				"duration_ms", time.Since(start).Milliseconds(),
 				"remote", r.RemoteAddr,
+				"actor_wallet", ww.Header().Get("X-Actor-Wallet"),
 			)
 		})
 	}

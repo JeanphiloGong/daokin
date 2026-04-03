@@ -24,3 +24,33 @@ type MembershipCommands interface {
 	JoinDAO(ctx context.Context, daoID, wallet string) (domain.DAOMembership, error)
 	LeaveDAO(ctx context.Context, daoID, wallet, reason string) (domain.DAOMembership, error)
 }
+
+type PermissionCommands interface {
+	GrantPermission(
+		ctx context.Context,
+		artifactID string,
+		granterWallet string,
+		granteeWallet string,
+		scope string,
+	) (domain.Permission, error)
+	RevokePermission(ctx context.Context, permissionID, granterWallet, reason string) (domain.Permission, error)
+}
+
+type ExchangeCommands interface {
+	RecordTransfer(
+		ctx context.Context,
+		artifactID string,
+		payerWallet string,
+		token string,
+		amountAtomic string,
+		txHash string,
+	) (domain.Transfer, error)
+}
+
+type AttributionQueries interface {
+	GetArtifactTrail(ctx context.Context, artifactID string) (domain.AttributionTrail, error)
+}
+
+type UserExportQueries interface {
+	ExportByWallet(ctx context.Context, wallet string) (domain.UserExportBundle, error)
+}

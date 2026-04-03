@@ -7,5 +7,7 @@ var (
 	ErrConflict         = errors.New("conflict")
 	ErrInvalidArgument  = errors.New("invalid argument")
 	ErrUnauthorized     = errors.New("unauthorized")
+	ErrForbidden        = errors.New("forbidden")
+	ErrRuleViolation    = errors.New("rule violation")
 	ErrChallengeInvalid = errors.New("challenge invalid")
 )
