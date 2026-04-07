@@ -46,8 +46,14 @@ npm run build
 ```
 
 ## Docs
+- Documentation map and governance: `docs/README.md`
+- Key decisions folder: `docs/decisions/`
 - Mission / long-term vision: `MISSION.md`
 - Project rules / guardrails: `AGENTS.md`
+- Module-local docs:
+  - `daokin-api/docs/`
+  - `daokin-web/docs/`
+  - `contracts/docs/`
 - Acceptance criteria (iteration loop): `references/acceptance-criteria.md`
 - Sub-agent role boundaries: `docs/agents/roles.md`
 - MVP delivery plan: `docs/roadmap/mvp.md`

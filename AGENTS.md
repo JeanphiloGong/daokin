@@ -162,6 +162,7 @@ These are not material to the current scope.
 ## Execution Rules
 - Keep changes small and auditable; one intent per change set.
 - Update narrative docs when behavior or philosophy changes.
+- For durable project knowledge, use `docs/README.md` and `docs/governance/documentation-governance.md` to decide placement, scope, and lifecycle.
 - If adding governance or moderation rules, make them explicit and visible.
 - **Iteration Loop (required)**: use `references/acceptance-criteria.md` for pass/fail review when it exists; if missing, record the gap in Risks & Open Questions.
 - **Step Gate (required)**: after Plan/Change/Verify/Reflect steps, pause and ask for `continue` before proceeding.
@@ -178,6 +179,6 @@ These are not material to the current scope.
 
 ## Risks & Open Questions
 - Highest-risk failure: drifting into centralized extraction or speculative finance.
-- Acceptance criteria file (`references/acceptance-criteria.md`) not present yet.
+- Documentation governance is now defined, but legacy docs still need incremental migration into the new system.
 - Governance model depth and moderation workflows remain undefined.
 - Legal/compliance requirements for value exchange are TBD.
