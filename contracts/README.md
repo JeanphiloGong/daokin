@@ -1,6 +1,14 @@
 # DaoKin Contracts
 
-Minimal contracts to bootstrap DaoKin MVP.
+`contracts` is the Hardhat + Solidity package for DaoKin MVP provenance and attributed value transfer.
+
+The cross-module event interpretation is maintained in [`../docs/architecture/contract-event-map.md`](../docs/architecture/contract-event-map.md). This README is the contracts module entrypoint.
+
+## Boundary
+
+- Owns Solidity contracts, Hardhat configuration, contract tests, and local contract usage notes.
+- Provides on-chain provenance and tip primitives for the MVP.
+- Does not own backend persistence, frontend state, or project-wide governance policy.
 
 ## Contracts
 
@@ -13,6 +21,12 @@ Minimal contracts to bootstrap DaoKin MVP.
 ```bash
 npm install
 npm run build
+```
+
+## Tests
+
+```bash
+npm test
 ```
 
 ## ABI (MVP surface)
@@ -88,3 +102,9 @@ await tipJar.tipToken(
 - `TipJar` verifies artifact existence against `ArtifactRegistry` before transfer.
 - `TipJar` uses a non-reentrancy guard on native and token tip paths.
 - MVP value exchange avoids speculative token logic and prioritizes clear attribution.
+
+## Related Docs
+
+- System overview: [`../docs/system-overview.md`](../docs/system-overview.md)
+- Contract event map: [`../docs/architecture/contract-event-map.md`](../docs/architecture/contract-event-map.md)
+- MVP acceptance baseline: [`../references/acceptance-criteria.md`](../references/acceptance-criteria.md)

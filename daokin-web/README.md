@@ -1,42 +1,52 @@
-# sv
+# DaoKin Web
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+`daokin-web` is the SvelteKit frontend for the DaoKin MVP flow. It owns the user-facing prototype for wallet auth, artifact creation, Dao joining, payment/tip interaction, and attribution viewing.
 
-## Creating a project
+The shared API contract is maintained in [`../docs/architecture/api-contract-v1.md`](../docs/architecture/api-contract-v1.md). This README is the frontend module entrypoint.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Boundary
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- Owns routes, components, client state, frontend API client code, UI tests, and e2e tests.
+- Currently defaults to mock API mode for the MVP demo page.
+- Does not own backend authorization behavior, contract events, or project-wide governance policy.
 
-To recreate this project with the same configuration:
+## Key Paths
 
-```sh
-# recreate this project
-npx sv create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" playwright tailwindcss="plugins:typography,forms" sveltekit-adapter="adapter:node" --install npm daokin-web
-```
+- `src/routes/`: SvelteKit page and layout surfaces.
+- `src/lib/features/mvp/`: MVP feature types, stores, API clients, and components.
+- `e2e/`: Playwright browser tests.
+- `static/`: static assets served by the web app.
 
-## Developing
+## Quick Start
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+## Build And Check
 
-To create a production version of your app:
-
-```sh
+```bash
 npm run build
+npm run check
+npm run lint
 ```
 
-You can preview the production build with `npm run preview`.
+## Tests
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```bash
+npm run test:unit -- --run
+npm run test:e2e
+```
+
+Playwright browser binaries are required for browser and e2e tests:
+
+```bash
+npx playwright install
+```
+
+## Related Docs
+
+- System overview: [`../docs/system-overview.md`](../docs/system-overview.md)
+- API contract: [`../docs/architecture/api-contract-v1.md`](../docs/architecture/api-contract-v1.md)
+- MVP roadmap: [`../docs/roadmap/mvp.md`](../docs/roadmap/mvp.md)

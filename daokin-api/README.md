@@ -1,6 +1,14 @@
-# DaoKin API (Chi)
+# DaoKin API
 
-Minimal Go + Chi API skeleton for DaoKin.
+`daokin-api` is the Go + Chi backend for the DaoKin MVP. It owns off-chain application state for wallet auth, artifacts, Dao membership, permissions, transfers, attribution trails, and user export.
+
+The shared HTTP contract is maintained in [`../docs/architecture/api-contract-v1.md`](../docs/architecture/api-contract-v1.md). This README is the backend module entrypoint.
+
+## Boundary
+
+- Owns backend routes, use cases, domain models, ports, adapters, logging, and service configuration.
+- Uses in-memory persistence for the current MVP prototype.
+- Does not own frontend state, Solidity contract behavior, or project-wide governance policy.
 
 ## Layering
 
@@ -13,7 +21,7 @@ Minimal Go + Chi API skeleton for DaoKin.
 - `internal/infra/persistence`: persistence adapters (current: memory)
 - `internal/infra/messaging`: messaging adapter placeholder
 
-## Quick start
+## Quick Start
 
 ```bash
 cd daokin-api
@@ -55,3 +63,10 @@ Environment variables (defaults shown):
 - `DAOKIN_WRITE_TIMEOUT=10s`
 - `DAOKIN_IDLE_TIMEOUT=60s`
 - `DAOKIN_SHUTDOWN_TIMEOUT=10s`
+
+## Related Docs
+
+- System overview: [`../docs/system-overview.md`](../docs/system-overview.md)
+- Domain model: [`../docs/architecture/domain-model.md`](../docs/architecture/domain-model.md)
+- API contract: [`../docs/architecture/api-contract-v1.md`](../docs/architecture/api-contract-v1.md)
+- MVP acceptance baseline: [`../references/acceptance-criteria.md`](../references/acceptance-criteria.md)
