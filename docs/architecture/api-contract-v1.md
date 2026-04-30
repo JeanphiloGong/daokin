@@ -1,63 +1,43 @@
-# API Contract v1 (MVP)
+---
+id: SPEC-API-001
+title: API Contract v1
+type: spec
+level: system
+domain: shared
+status: active
+owner: project-owner
+created_at: 2026-04-07
+updated_at: 2026-04-30
+last_verified_at: 2026-04-30
+review_by: 2026-07-30
+version: v2
+source_of_truth: true
+related_issues: [1, 2, 3, 4, 5]
+related_docs:
+  - ../roadmap/mvp.md
+  - domain-model.md
+  - contract-event-map.md
+supersedes: []
+superseded_by: []
+tags: [api, mvp, contract]
+---
 
-Status: implementation contract for backend/frontend handoff.
-Alignment: `docs/roadmap/mvp.md` AC-1/2/3 mandatory, AC-4 audit baseline.
+# API Contract v1
 
-## 1) Global Conventions
+This contract describes the HTTP API currently implemented by `daokin-api` for the MVP loop. It is the shared backend/frontend handoff for M2 execution and should stay aligned with the router and handlers in `daokin-api/internal/interfaces/http/`.
+
+## Conventions
 
 - Base path: `/v1`
 - Content type: `application/json`
-- Auth: `Authorization: Bearer <access_token>`
-- Request id: server returns `X-Request-Id` on every response
+- Auth header: `Authorization: Bearer <access_token>`
 - Time format: RFC3339 UTC
-- Wallet format: lowercase EVM address
+- Wallet format: EVM address; clients should send lowercase addresses
 - Amount format: `amount_atomic` decimal string
+- Success responses return the resource directly, not a `{ "data": ... }` wrapper
+- Error responses return `{ "error": "message" }`
 
-## 2) Response and Error Shape
-
-Success:
-
-```json
-{
-  "data": {}
-}
-```
-
-Error:
-
-```json
-{
-  "error": {
-    "code": "INVALID_ARGUMENT",
-    "message": "content_hash must be bytes32 hex",
-    "request_id": "req_01J...",
-    "details": {}
-  }
-}
-```
-
-Common error codes:
-
-| HTTP | Code | Meaning |
-|---|---|---|
-| 400 | `INVALID_ARGUMENT` | Bad field value or missing field |
-| 401 | `UNAUTHORIZED` | Missing/invalid token |
-| 403 | `FORBIDDEN` | Authenticated but not allowed |
-| 404 | `NOT_FOUND` | Resource missing |
-| 409 | `CONFLICT` | State conflict (already joined, duplicate permission) |
-| 422 | `RULE_VIOLATION` | Business rule failed |
-| 429 | `RATE_LIMITED` | Too many requests |
-| 500 | `INTERNAL` | Internal failure |
-
-Domain-specific codes (subset):
-- `CHALLENGE_EXPIRED`, `SIGNATURE_INVALID`, `WALLET_MISMATCH`
-- `DAO_NOT_FOUND`, `MEMBERSHIP_NOT_ACTIVE`
-- `ARTIFACT_NOT_FOUND`, `PERMISSION_NOT_FOUND`
-- `PERMISSION_CONFLICT`, `FORBIDDEN_NOT_OWNER`, `FORBIDDEN_NOT_GRANTER`
-
-## 3) Endpoint Contracts
-
-### 3.1 Auth challenge
+## Auth Challenge
 
 `POST /v1/auth/challenge`
 
@@ -65,9 +45,7 @@ Request:
 
 ```json
 {
-  "wallet": "0xabc...",
-  "chain_id": 1,
-  "statement": "Sign in to DaoKin"
+  "wallet": "0x1111111111111111111111111111111111111111"
 }
 ```
 
@@ -75,19 +53,20 @@ Response:
 
 ```json
 {
-  "data": {
-    "challenge_id": "chl_01J...",
-    "wallet": "0xabc...",
-    "nonce": "n_01J...",
-    "message": "DaoKin login nonce: n_01J...",
-    "expires_at": "2026-02-07T10:10:00Z"
-  }
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "nonce": "7b3f...",
+  "message": "Sign this DaoKin challenge nonce: 7b3f...",
+  "created_at": "2026-04-30T10:00:00Z",
+  "expires_at": "2026-04-30T10:05:00Z"
 }
 ```
 
-Errors: `INVALID_ARGUMENT`, `RATE_LIMITED`.
+Failure cases:
 
-### 3.2 Auth verify
+- `400`: invalid request body or invalid wallet input
+- `500`: challenge creation failure
+
+## Auth Verify
 
 `POST /v1/auth/verify`
 
@@ -95,8 +74,8 @@ Request:
 
 ```json
 {
-  "challenge_id": "chl_01J...",
-  "wallet": "0xabc...",
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "nonce": "7b3f...",
   "signature": "0x..."
 }
 ```
@@ -105,35 +84,31 @@ Response:
 
 ```json
 {
-  "data": {
-    "access_token": "jwt_or_paseto",
-    "token_type": "Bearer",
-    "expires_at": "2026-02-07T22:10:00Z",
-    "user": {
-      "user_id": "usr_01J...",
-      "primary_wallet": "0xabc...",
-      "status": "active",
-      "created_at": "2026-02-07T10:00:00Z"
-    }
-  }
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "access_token": "8d9f...",
+  "verified_at": "2026-04-30T10:01:00Z"
 }
 ```
 
-Errors: `CHALLENGE_EXPIRED`, `SIGNATURE_INVALID`, `WALLET_MISMATCH`, `UNAUTHORIZED`.
+Failure cases:
 
-### 3.3 Artifact create
+- `400`: invalid request body or missing field
+- `401`: challenge missing, expired, nonce mismatch, invalid signature, or wallet mismatch
+- `500`: verification failure outside expected auth errors
 
-`POST /v1/artifacts` (auth required)
+## Artifact Create
+
+`POST /v1/artifacts`
+
+Auth required for `creator_wallet`.
 
 Request:
 
 ```json
 {
-  "title": "My first artifact",
-  "content_uri": "ipfs://bafy...",
-  "content_hash": "0x1234...",
-  "dao_id": "dao_01J...",
-  "publish_onchain": true
+  "creator_wallet": "0x1111111111111111111111111111111111111111",
+  "content_hash": "0xabc123...",
+  "content_uri": "daokin://artifact/my-first-artifact"
 }
 ```
 
@@ -141,62 +116,51 @@ Response:
 
 ```json
 {
-  "data": {
-    "artifact_id": "art_01J...",
-    "chain_artifact_id": "42",
-    "creator_wallet": "0xabc...",
-    "content_uri": "ipfs://bafy...",
-    "content_hash": "0x1234...",
-    "status": "active",
-    "provenance_status": "offchain_recorded",
-    "created_at": "2026-02-07T10:20:00Z"
-  }
+  "id": "art_000001",
+  "creator_wallet": "0x1111111111111111111111111111111111111111",
+  "content_hash": "0xabc123...",
+  "content_uri": "daokin://artifact/my-first-artifact",
+  "created_at": "2026-04-30T10:02:00Z"
 }
 ```
 
-Errors: `UNAUTHORIZED`, `INVALID_ARGUMENT`, `DAO_NOT_FOUND`, `CONFLICT`.
+Failure cases:
 
-### 3.4 Artifact get
+- `400`: invalid request body or missing artifact fields
+- `401`: missing or invalid bearer token for `creator_wallet`
+- `500`: persistence or command failure
 
-`GET /v1/artifacts/{artifact_id}`
+## Artifact Get
+
+`GET /v1/artifacts/{id}`
 
 Response:
 
 ```json
 {
-  "data": {
-    "artifact_id": "art_01J...",
-    "chain_artifact_id": "42",
-    "creator_wallet": "0xabc...",
-    "content_uri": "ipfs://bafy...",
-    "content_hash": "0x1234...",
-    "status": "active",
-    "provenance_status": "onchain_confirmed",
-    "chain_ref": {
-      "chain_id": 1,
-      "contract_alias": "artifact_registry",
-      "contract_address": "0xreg...",
-      "tx_hash": "0xtx...",
-      "log_index": 3,
-      "block_number": 21900001,
-      "block_timestamp": "2026-02-07T10:21:00Z"
-    },
-    "created_at": "2026-02-07T10:20:00Z"
-  }
+  "id": "art_000001",
+  "creator_wallet": "0x1111111111111111111111111111111111111111",
+  "content_hash": "0xabc123...",
+  "content_uri": "daokin://artifact/my-first-artifact",
+  "created_at": "2026-04-30T10:02:00Z"
 }
 ```
 
-Errors: `NOT_FOUND`.
+Failure cases:
 
-### 3.5 Dao join
+- `404`: artifact not found
 
-`POST /v1/daos/{dao_id}/join` (auth required)
+## Dao Join
+
+`POST /v1/daos/{id}/join`
+
+Auth required for `wallet`.
 
 Request:
 
 ```json
 {
-  "reason": "Interested in public goods"
+  "wallet": "0x1111111111111111111111111111111111111111"
 }
 ```
 
@@ -204,28 +168,30 @@ Response:
 
 ```json
 {
-  "data": {
-    "membership_id": "mem_01J...",
-    "dao_id": "dao_01J...",
-    "user_id": "usr_01J...",
-    "role": "member",
-    "status": "active",
-    "joined_at": "2026-02-07T10:30:00Z"
-  }
+  "dao_id": "dao-builders",
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "joined_at": "2026-04-30T10:03:00Z",
+  "left_at": null
 }
 ```
 
-Errors: `UNAUTHORIZED`, `DAO_NOT_FOUND`, `CONFLICT`.
+Failure cases:
 
-### 3.6 Dao leave
+- `400`: invalid request body or empty DAO/wallet
+- `401`: missing or invalid bearer token for `wallet`
 
-`POST /v1/daos/{dao_id}/leave` (auth required)
+## Dao Leave
+
+`POST /v1/daos/{id}/leave`
+
+Auth required for `wallet`.
 
 Request:
 
 ```json
 {
-  "left_reason": "Switching focus"
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "reason": "MVP reversibility check"
 }
 ```
 
@@ -233,32 +199,35 @@ Response:
 
 ```json
 {
-  "data": {
-    "membership_id": "mem_01J...",
-    "dao_id": "dao_01J...",
-    "user_id": "usr_01J...",
-    "status": "left",
-    "joined_at": "2026-02-07T10:30:00Z",
-    "left_at": "2026-02-07T12:30:00Z",
-    "left_reason": "Switching focus"
-  }
+  "dao_id": "dao-builders",
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "joined_at": "2026-04-30T10:03:00Z",
+  "left_at": "2026-04-30T10:30:00Z",
+  "leave_reason": "MVP reversibility check"
 }
 ```
 
-Errors: `UNAUTHORIZED`, `DAO_NOT_FOUND`, `MEMBERSHIP_NOT_ACTIVE`.
+Failure cases:
 
-### 3.7 Permission grant
+- `400`: invalid request body or empty DAO/wallet
+- `401`: missing or invalid bearer token for `wallet`
+- `404`: active membership not found
+- `409`: membership already left
 
-`POST /v1/permissions` (auth required)
+## Permission Grant
+
+`POST /v1/permissions`
+
+Auth required for `granter_wallet`. The granter must be the artifact creator.
 
 Request:
 
 ```json
 {
-  "artifact_id": "art_01J...",
-  "grantee": "0xdef...",
-  "scope": "reuse",
-  "expires_at": "2026-03-01T00:00:00Z"
+  "artifact_id": "art_000001",
+  "granter_wallet": "0x1111111111111111111111111111111111111111",
+  "grantee_wallet": "0x2222222222222222222222222222222222222222",
+  "scope": "view"
 }
 ```
 
@@ -266,92 +235,175 @@ Response:
 
 ```json
 {
-  "data": {
-    "permission_id": "prm_01J...",
-    "artifact_id": "art_01J...",
-    "granter": "0xabc...",
-    "grantee": "0xdef...",
-    "scope": "reuse",
-    "status": "granted",
-    "granted_at": "2026-02-07T11:00:00Z",
-    "expires_at": "2026-03-01T00:00:00Z"
-  }
+  "id": "perm_000001",
+  "artifact_id": "art_000001",
+  "granter_wallet": "0x1111111111111111111111111111111111111111",
+  "grantee_wallet": "0x2222222222222222222222222222222222222222",
+  "scope": "view",
+  "status": "active",
+  "granted_at": "2026-04-30T10:04:00Z"
 }
 ```
 
-Errors: `UNAUTHORIZED`, `ARTIFACT_NOT_FOUND`, `FORBIDDEN_NOT_OWNER`, `PERMISSION_CONFLICT`, `INVALID_ARGUMENT`.
+Failure cases:
 
-### 3.8 Permission revoke
+- `400`: invalid request body or missing field
+- `401`: missing or invalid bearer token for `granter_wallet`
+- `403`: granter is not the artifact creator
+- `404`: artifact not found
+- `422`: invalid rule, such as granting to self
 
-`POST /v1/permissions/{permission_id}/revoke` (auth required)
+## Permission Revoke
+
+`POST /v1/permissions/{id}/revoke`
+
+Auth required for `granter_wallet`. The granter must match the original permission granter.
 
 Request:
 
 ```json
 {
+  "granter_wallet": "0x1111111111111111111111111111111111111111",
+  "reason": "Terms changed"
+}
+```
+
+Response:
+
+```json
+{
+  "id": "perm_000001",
+  "artifact_id": "art_000001",
+  "granter_wallet": "0x1111111111111111111111111111111111111111",
+  "grantee_wallet": "0x2222222222222222222222222222222222222222",
+  "scope": "view",
+  "status": "revoked",
+  "granted_at": "2026-04-30T10:04:00Z",
+  "revoked_at": "2026-04-30T10:20:00Z",
   "revoke_reason": "Terms changed"
 }
 ```
 
+Failure cases:
+
+- `400`: invalid request body or missing field
+- `401`: missing or invalid bearer token for `granter_wallet`
+- `403`: requester is not the permission granter
+- `404`: permission not found
+- `409`: permission already revoked
+
+## Transfer Record
+
+`POST /v1/transfers`
+
+Auth required for `payer_wallet`. If the payer is not the artifact creator, the payer must have an active `view` permission for the artifact.
+
+Request:
+
+```json
+{
+  "artifact_id": "art_000001",
+  "payer_wallet": "0x2222222222222222222222222222222222222222",
+  "token": "USDC",
+  "amount_atomic": "1000000",
+  "tx_hash": "0xabc..."
+}
+```
+
 Response:
 
 ```json
 {
-  "data": {
-    "permission_id": "prm_01J...",
-    "status": "revoked",
-    "revoked_at": "2026-02-07T11:10:00Z",
-    "revoke_reason": "Terms changed"
-  }
+  "id": "tx_000001",
+  "artifact_id": "art_000001",
+  "payer_wallet": "0x2222222222222222222222222222222222222222",
+  "recipient_wallet": "0x1111111111111111111111111111111111111111",
+  "token": "USDC",
+  "amount_atomic": "1000000",
+  "tx_hash": "0xabc...",
+  "created_at": "2026-04-30T10:05:00Z"
 }
 ```
 
-Errors: `UNAUTHORIZED`, `PERMISSION_NOT_FOUND`, `FORBIDDEN_NOT_GRANTER`, `CONFLICT`.
+Failure cases:
 
-### 3.9 Transfer query (artifact scoped)
+- `400`: invalid request body or amount
+- `401`: missing or invalid bearer token for `payer_wallet`
+- `403`: non-owner payer lacks active `view` permission
+- `404`: artifact not found
 
-`GET /v1/artifacts/{artifact_id}/transfers?status=confirmed&cursor=...&limit=20`
+## Artifact Attribution
+
+`GET /v1/artifacts/{id}/attribution`
 
 Response:
 
 ```json
 {
-  "data": {
-    "items": [
-      {
-        "transfer_id": "trf_01J...",
-        "artifact_id": "art_01J...",
-        "permission_id": "prm_01J...",
-        "sender_wallet": "0xdef...",
-        "recipient_wallet": "0xabc...",
-        "token_address": "0x0000000000000000000000000000000000000000",
-        "amount_atomic": "10000000000000000",
-        "tx_hash": "0xtx...",
-        "tx_status": "confirmed",
-        "memo": "dk:v1:intent:ti_01J...",
-        "confirmed_at": "2026-02-07T11:30:00Z"
-      }
-    ],
-    "next_cursor": null
-  }
+  "artifact_id": "art_000001",
+  "permissions": [
+    {
+      "id": "perm_000001",
+      "artifact_id": "art_000001",
+      "granter_wallet": "0x1111111111111111111111111111111111111111",
+      "grantee_wallet": "0x2222222222222222222222222222222222222222",
+      "scope": "view",
+      "status": "active",
+      "granted_at": "2026-04-30T10:04:00Z"
+    }
+  ],
+  "transfers": [
+    {
+      "id": "tx_000001",
+      "artifact_id": "art_000001",
+      "payer_wallet": "0x2222222222222222222222222222222222222222",
+      "recipient_wallet": "0x1111111111111111111111111111111111111111",
+      "token": "USDC",
+      "amount_atomic": "1000000",
+      "tx_hash": "0xabc...",
+      "created_at": "2026-04-30T10:05:00Z"
+    }
+  ],
+  "total_records": 2
 }
 ```
 
-Errors: `INVALID_ARGUMENT`, `NOT_FOUND`.
+Failure cases:
 
-## 4) AC Coverage Matrix
+- `400`: empty artifact id
+- `500`: repository query failure
 
-- AC-1.1 provenance fields: covered by `POST /v1/artifacts` and `GET /v1/artifacts/{artifact_id}`.
-- AC-2.1 consent record: covered by `POST /v1/permissions` and revoke endpoint.
-- AC-2.2 attribution query: covered by `GET /v1/artifacts/{artifact_id}/transfers`.
-- AC-3.1 join/leave reversibility: covered by join and leave endpoints with audit timestamps.
-- AC-3.2 no forced grouping: no endpoint auto-creates membership during auth/onboarding.
-- AC-4.2 audit baseline: `X-Request-Id` + authenticated actor in request logs for all write paths.
+## User Export
 
-## 5) Optional v1 Extension (for AC-1.2 export)
+`GET /v1/users/{wallet}/export`
 
-To close AC-1.2 fully, add:
-- `POST /v1/users/me/export-jobs`
-- `GET /v1/users/me/export-jobs/{job_id}`
+Auth required for `{wallet}`.
 
-Output should include only the caller's artifacts and memberships.
+Response:
+
+```json
+{
+  "wallet": "0x1111111111111111111111111111111111111111",
+  "artifacts": [],
+  "memberships": [],
+  "permissions": [],
+  "transfers": []
+}
+```
+
+The export includes records created by, owned by, or associated with the wallet.
+
+Failure cases:
+
+- `400`: empty wallet
+- `401`: missing or invalid bearer token for `{wallet}`
+
+## Acceptance Coverage
+
+- AC-1.1 provenance fields: `POST /v1/artifacts` and `GET /v1/artifacts/{id}`
+- AC-1.2 data export path: `GET /v1/users/{wallet}/export`
+- AC-2.1 consent record: `POST /v1/permissions` and `POST /v1/permissions/{id}/revoke`
+- AC-2.2 value attribution: `POST /v1/transfers` and `GET /v1/artifacts/{id}/attribution`
+- AC-3.1 join/leave reversibility: `POST /v1/daos/{id}/join` and `POST /v1/daos/{id}/leave`
+- AC-3.2 no forced grouping: auth and artifact creation do not create DAO memberships
+- AC-4.2 audit baseline: request logs include request id and authenticated actor wallet on protected write paths

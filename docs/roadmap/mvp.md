@@ -80,6 +80,135 @@ create artifact -> join dao -> permissioned exchange -> attribution/reputation
 - Wallet auth -> create artifact -> join dao -> tip/pay -> view attribution
 - Error states for denied permission and payment failures
 
+### M2 Implementation Plan
+
+M2 should use the backend route surface that already exists in the repository as the execution contract, then update the shared API contract document to match that implemented surface. Rewriting the backend to match the stale contract first would expand the milestone and delay the core loop.
+
+No compatibility adapter, wrapper, shim, or dual-path migration should be added for this pass. The implementation should directly connect the web MVP flow to the current API and remove mock-only behavior from HTTP mode.
+
+#### API contract alignment
+
+Update [../architecture/api-contract-v1.md](../architecture/api-contract-v1.md) so it describes the current backend behavior for:
+
+- `POST /v1/auth/challenge`
+- `POST /v1/auth/verify`
+- `POST /v1/artifacts`
+- `GET /v1/artifacts/{artifactID}`
+- `POST /v1/daos/{daoID}/join`
+- `POST /v1/daos/{daoID}/leave`
+- `POST /v1/permissions`
+- `POST /v1/permissions/{permissionID}/revoke`
+- `POST /v1/transfers`
+- `GET /v1/artifacts/{artifactID}/attribution`
+- `GET /v1/users/{wallet}/export`
+
+The contract update should remove or revise stale expectations that are not implemented by the API service, including the `{ data: ... }` success wrapper, `challenge_id`, the old artifact creation fields, and transfer query paths that do not exist in the router.
+
+#### Backend verification
+
+Keep the main backend route implementation in [../../daokin-api/internal/interfaces/http/mvp_handlers.go](../../daokin-api/internal/interfaces/http/mvp_handlers.go). The route handlers already cover the M2 loop and should not be replaced by a second interface.
+
+Verify and, where needed, extend [../../daokin-api/internal/interfaces/http/mvp_handlers_test.go](../../daokin-api/internal/interfaces/http/mvp_handlers_test.go) for:
+
+- `AuthChallenge` and `AuthVerify`: a valid challenge produces a usable session token.
+- `CreateArtifact`: protected creation requires a valid bearer token and records creator wallet, content URI, content hash, and timestamp.
+- `JoinDAO` and `LeaveDAO`: membership is explicit, auditable, and reversible.
+- `GrantPermission` and `RevokePermission`: only the artifact owner can grant or revoke usage permission.
+- `RecordTransfer`: transfer is rejected before permission exists and accepted after an active permission exists for the payer.
+- `GetArtifactAttribution`: attribution returns the artifact permission and transfer trail.
+- `ExportUserData`: export returns records owned by or associated with the requesting wallet only.
+
+The application port surface in [../../daokin-api/internal/app/ports/in/mvp.go](../../daokin-api/internal/app/ports/in/mvp.go) should stay the backend boundary for the web-facing MVP commands and queries.
+
+#### Frontend API client
+
+Update [../../daokin-web/src/lib/features/mvp/api/client.ts](../../daokin-web/src/lib/features/mvp/api/client.ts) so HTTP mode uses the real backend instead of local-only ledger behavior.
+
+Functions to change:
+
+- `createHttpClient()`: keep the access token in the HTTP client closure and route protected writes through one authorization helper.
+- `walletConnect()`: replace the hard-coded `local-dev-signature` with a signed challenge message.
+- `artifact.create()`: send the bearer token and use the backend artifact creation payload.
+- `dao.join()`: send the bearer token.
+- `payment.tip()`: call `POST /v1/transfers` instead of writing to `httpTipLedger`.
+- `attribution.listByArtifact()`: call `GET /v1/artifacts/{artifactID}/attribution` instead of reconstructing attribution from local state.
+
+Helper functions to add in the same file unless reuse pressure appears:
+
+- `signChallengeMessage(wallet, message)`: request a wallet signature through the browser wallet provider for the challenge message.
+- `authorizedJson<T>(path, init)`: send JSON requests with the current bearer token.
+- `toUSDCAtomic(amount)`: convert the UI amount into the atomic amount string expected by transfer recording.
+- `makeLocalTxHash()`: create a local development transaction reference when no on-chain transaction is used.
+
+Keep [../../daokin-web/src/lib/features/mvp/api/http.ts](../../daokin-web/src/lib/features/mvp/api/http.ts) as the shared request helper. Only extend it if the client code cannot keep authorization local without duplicating request logic.
+
+#### Frontend types and state
+
+Update [../../daokin-web/src/lib/features/mvp/types.ts](../../daokin-web/src/lib/features/mvp/types.ts) with the backend-facing records needed by M2:
+
+- `PermissionRecord`
+- `GrantPermissionInput`
+- `RevokePermissionInput`
+- `LeaveDaoInput`
+- `AttributionTrail`
+- `UserExportBundle`
+
+Update [../../daokin-web/src/lib/features/mvp/stores/daoStore.ts](../../daokin-web/src/lib/features/mvp/stores/daoStore.ts) with:
+
+- `leaveDao(api, userId, reason?)`
+
+Add [../../daokin-web/src/lib/features/mvp/stores/permissionStore.ts](../../daokin-web/src/lib/features/mvp/stores/permissionStore.ts) with:
+
+- `grantPermission(api, input)`
+- `revokePermission(api, input)`
+
+Add [../../daokin-web/src/lib/features/mvp/stores/exportStore.ts](../../daokin-web/src/lib/features/mvp/stores/exportStore.ts) with:
+
+- `loadUserExport(api, wallet)`
+
+#### Frontend page flow
+
+Update [../../daokin-web/src/routes/+page.svelte](../../daokin-web/src/routes/+page.svelte) so the visible MVP flow becomes:
+
+```text
+wallet auth -> create artifact -> join dao -> grant permission -> record transfer -> view attribution -> export user data -> leave dao
+```
+
+Functions to change:
+
+- `connectWallet()`
+- `publishArtifact()`
+- `joinDao()`
+- `tipPay()`
+- `refreshAttribution()`
+
+Functions to add:
+
+- `grantPermission()`
+- `revokePermission()`
+- `leaveDao()`
+- `exportUserData()`
+
+Replace the hard-coded `createApiClient({ mode: 'mock' })` with environment-driven configuration so local mock mode remains available while HTTP mode can run the full M2 loop against the API service.
+
+#### M2 Verification
+
+Run the backend test suite after backend or contract changes:
+
+```bash
+cd daokin-api && go test ./...
+```
+
+Run the frontend verification after web changes:
+
+```bash
+cd daokin-web && npm run check
+```
+
+If unit tests exist or are added for the web package, run them with the repository's configured command. If browser end-to-end verification is needed, install the required browser runtime before running Playwright.
+
+Complete one manual verification run using the protocol below and record the evidence in the issue, PR, release note, or verification report that owns the iteration.
+
 ### Exit criteria
 - All mandatory checks in AC-1, AC-2, and AC-3 pass.
 - AC-4 has no critical unresolved risk.

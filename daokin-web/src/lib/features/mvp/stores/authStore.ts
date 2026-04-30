@@ -12,7 +12,7 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-	walletAddress: '0xabc12345',
+	walletAddress: '0x1111111111111111111111111111111111111111',
 	session: null,
 	step: { status: 'idle', error: '' }
 };

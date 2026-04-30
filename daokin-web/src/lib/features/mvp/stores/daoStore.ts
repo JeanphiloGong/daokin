@@ -11,6 +11,7 @@ interface DaoState {
 	selectedDaoId: string;
 	membership: DaoMembership | null;
 	joinStep: StepState;
+	leaveStep: StepState;
 }
 
 const initialState: DaoState = {
@@ -18,7 +19,8 @@ const initialState: DaoState = {
 	daos: [],
 	selectedDaoId: '',
 	membership: null,
-	joinStep: { status: 'idle', error: '' }
+	joinStep: { status: 'idle', error: '' },
+	leaveStep: { status: 'idle', error: '' }
 };
 
 export function createDaoStore() {
@@ -36,18 +38,26 @@ export function createDaoStore() {
 				joinStep: { status: 'error', error: message }
 			}));
 		},
+		setLeaveError(message: string): void {
+			update((state) => ({
+				...state,
+				leaveStep: { status: 'error', error: message }
+			}));
+		},
 		resetForWalletChange(): void {
 			update((state) => ({
 				...state,
 				membership: null,
-				joinStep: { status: 'idle', error: '' }
+				joinStep: { status: 'idle', error: '' },
+				leaveStep: { status: 'idle', error: '' }
 			}));
 		},
 		resetForArtifactChange(): void {
 			update((state) => ({
 				...state,
 				membership: null,
-				joinStep: { status: 'idle', error: '' }
+				joinStep: { status: 'idle', error: '' },
+				leaveStep: { status: 'idle', error: '' }
 			}));
 		},
 		async loadDaos(api: ApiClient): Promise<void> {
@@ -93,6 +103,37 @@ export function createDaoStore() {
 				update((current) => ({
 					...current,
 					joinStep: { status: 'error', error: toErrorMessage(error) }
+				}));
+				return false;
+			}
+		},
+		async leaveDao(api: ApiClient, userId: string, reason = ''): Promise<boolean> {
+			const state = get(store);
+			if (!state.membership || state.membership.leftAt) {
+				update((current) => ({
+					...current,
+					leaveStep: { status: 'error', error: 'Join an active DAO before leaving.' }
+				}));
+				return false;
+			}
+
+			update((current) => ({ ...current, leaveStep: { status: 'loading', error: '' } }));
+			try {
+				const membership = await api.dao.leave({
+					daoId: state.membership.daoId,
+					userId,
+					reason
+				});
+				update((current) => ({
+					...current,
+					membership,
+					leaveStep: { status: 'success', error: '' }
+				}));
+				return true;
+			} catch (error) {
+				update((current) => ({
+					...current,
+					leaveStep: { status: 'error', error: toErrorMessage(error) }
 				}));
 				return false;
 			}

@@ -24,6 +24,14 @@ npm install
 npm run dev
 ```
 
+The MVP page defaults to mock API mode. To run against `daokin-api`, expose the API under the configured base URL and set:
+
+```bash
+PUBLIC_DAOKIN_API_MODE=http PUBLIC_DAOKIN_API_BASE_URL=/api npm run dev
+```
+
+If the browser calls `daokin-api` on another origin directly, that API origin must allow the web dev origin through CORS.
+
 ## Build And Check
 
 ```bash

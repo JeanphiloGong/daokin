@@ -1,5 +1,13 @@
 export type StepStatus = 'idle' | 'loading' | 'success' | 'error';
-export type StepKey = 'walletAuth' | 'createArtifact' | 'joinDao' | 'tipPay' | 'viewAttribution';
+export type StepKey =
+	| 'walletAuth'
+	| 'createArtifact'
+	| 'joinDao'
+	| 'grantPermission'
+	| 'tipPay'
+	| 'viewAttribution'
+	| 'exportUserData'
+	| 'leaveDao';
 
 export interface StepState {
 	status: StepStatus;
@@ -32,6 +40,31 @@ export interface DaoMembership {
 	userId: string;
 	role: 'member' | 'steward';
 	joinedAt: string;
+	leftAt?: string | null;
+	leaveReason?: string;
+}
+
+export interface PermissionRecord {
+	id: string;
+	artifactId: string;
+	granterWallet: string;
+	granteeWallet: string;
+	scope: string;
+	status: 'active' | 'revoked';
+	grantedAt: string;
+	revokedAt?: string | null;
+	revokeReason?: string;
+}
+
+export interface TransferRecord {
+	id: string;
+	artifactId: string;
+	payerWallet: string;
+	recipientWallet: string;
+	token: string;
+	amountAtomic: string;
+	txHash: string;
+	createdAt: string;
 }
 
 export interface TipPayment {
@@ -53,6 +86,21 @@ export interface AttributionRecord {
 	sharePercent: number;
 }
 
+export interface AttributionTrail {
+	artifactId: string;
+	permissions: PermissionRecord[];
+	transfers: TransferRecord[];
+	totalRecords: number;
+}
+
+export interface UserExportBundle {
+	wallet: string;
+	artifacts: Artifact[];
+	memberships: DaoMembership[];
+	permissions: PermissionRecord[];
+	transfers: TransferRecord[];
+}
+
 export interface ConnectWalletInput {
 	walletAddress: string;
 }
@@ -67,6 +115,25 @@ export interface JoinDaoInput {
 	daoId: string;
 	userId: string;
 	artifactId?: string;
+}
+
+export interface LeaveDaoInput {
+	daoId: string;
+	userId: string;
+	reason?: string;
+}
+
+export interface GrantPermissionInput {
+	artifactId: string;
+	granterWallet: string;
+	granteeWallet: string;
+	scope: string;
+}
+
+export interface RevokePermissionInput {
+	permissionId: string;
+	granterWallet: string;
+	reason?: string;
 }
 
 export interface TipInput {

@@ -40,7 +40,7 @@ The contracts package owns on-chain provenance and value-attribution primitives.
 
 ## Current Delivery State
 
-The repository is in the MVP implementation phase. The backend has the main MVP route surface and in-memory persistence. The frontend is still a prototype flow and must be checked against real API integration before MVP acceptance. The contracts package has minimal provenance and tip primitives, but the contracts are not audited.
+The repository is in the MVP implementation phase. The backend has the main MVP route surface and in-memory persistence. The frontend has mock mode and an HTTP mode for the M2 loop, but browser-level API verification is still required before MVP acceptance. The contracts package has minimal provenance and tip primitives, but the contracts are not audited.
 
 MVP acceptance requires the checks and verification template in [roadmap/mvp.md](roadmap/mvp.md).
 
