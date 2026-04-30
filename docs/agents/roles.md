@@ -43,7 +43,7 @@ This document defines execution roles for parallel work while keeping changes au
 - Transfer attribution query endpoints
 
 ### Done definition
-- Endpoints run locally and pass manual acceptance checks in `references/acceptance-criteria.md`.
+- Endpoints run locally and pass manual acceptance checks in `docs/roadmap/mvp.md`.
 
 ## Role 3: Contract Agent (Solidity)
 
@@ -87,7 +87,7 @@ This document defines execution roles for parallel work while keeping changes au
 - Threat review, quality gates, release readiness.
 
 ### Owns
-- `references/acceptance-criteria.md`
+- `docs/roadmap/mvp.md`
 - `docs/security/*` (if added)
 - verification notes in PR/release docs
 
@@ -108,4 +108,4 @@ This document defines execution roles for parallel work while keeping changes au
 ## Cadence (recommended)
 - Daily sync: blockers and contract changes only
 - Merge strategy: small PRs, one intent per change
-- Verification gate: run manual protocol in `references/acceptance-criteria.md` before milestone tag
+- Verification gate: run manual protocol in `docs/roadmap/mvp.md` before milestone tag

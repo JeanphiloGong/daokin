@@ -2,7 +2,7 @@
 
 Status: v1 handoff draft for implementation.
 Scope: User, Dao, Artifact, Permission, Transfer, Membership.
-Alignment: `references/acceptance-criteria.md` (AC-1/2/3 mandatory, AC-4 baseline).
+Alignment: `docs/roadmap/mvp.md` (AC-1/2/3 mandatory, AC-4 baseline).
 
 ## 1) Shared Conventions
 

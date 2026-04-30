@@ -107,4 +107,4 @@ await tipJar.tipToken(
 
 - System overview: [`../docs/system-overview.md`](../docs/system-overview.md)
 - Contract event map: [`../docs/architecture/contract-event-map.md`](../docs/architecture/contract-event-map.md)
-- MVP acceptance baseline: [`../references/acceptance-criteria.md`](../references/acceptance-criteria.md)
+- MVP roadmap and acceptance baseline: [`../docs/roadmap/mvp.md`](../docs/roadmap/mvp.md)

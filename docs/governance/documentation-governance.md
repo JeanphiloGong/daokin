@@ -126,10 +126,9 @@ When a document is replaced:
 
 Only one document in the same scope should be marked `source_of_truth: true` for the same contract or design surface.
 
-Current controlled exception:
+Current controlled baseline:
 
-- `references/acceptance-criteria.md` remains the MVP acceptance baseline by existing project rule.
-- Until it is explicitly migrated, treat it as an approved exception rather than a reason to place more durable docs in `references/`.
+- `docs/roadmap/mvp.md` is the MVP roadmap, acceptance baseline, and verification template.
 
 ## Storage Rules
 
@@ -154,14 +153,11 @@ Use module-local docs for:
 
 Module-local docs must not become a parallel source of truth for project-wide decisions or shared contracts.
 
-### `references/`
+### Verification Evidence
 
-Use `references/` for:
+Keep durable acceptance criteria and verification templates in their owning docs. For MVP, that owner is `docs/roadmap/mvp.md`.
 
-- verification templates
-- evidence logs
-- pass/fail baselines
-- other bounded working artifacts
+Record raw evidence in the issue, PR, release note, or verification report that owns the iteration.
 
 ### Promotion Rule
 

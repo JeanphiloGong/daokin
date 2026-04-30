@@ -1,7 +1,7 @@
 # API Contract v1 (MVP)
 
 Status: implementation contract for backend/frontend handoff.
-Alignment: `references/acceptance-criteria.md` AC-1/2/3 mandatory, AC-4 audit baseline.
+Alignment: `docs/roadmap/mvp.md` AC-1/2/3 mandatory, AC-4 audit baseline.
 
 ## 1) Global Conventions
 

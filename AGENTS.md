@@ -164,7 +164,7 @@ These are not material to the current scope.
 - Update narrative docs when behavior or philosophy changes.
 - For durable project knowledge, use `docs/README.md` and `docs/governance/documentation-governance.md` to decide placement, scope, and lifecycle.
 - If adding governance or moderation rules, make them explicit and visible.
-- **Iteration Loop (required)**: use `references/acceptance-criteria.md` for pass/fail review when it exists; if missing, record the gap in Risks & Open Questions.
+- **Iteration Loop (required)**: use `docs/roadmap/mvp.md` for MVP pass/fail review and verification records; if missing, record the gap in Risks & Open Questions.
 - **Step Gate (required)**: after Plan/Change/Verify/Reflect steps, pause and ask for `continue` before proceeding.
 
 ## Quality Bar

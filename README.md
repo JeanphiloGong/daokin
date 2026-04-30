@@ -51,7 +51,7 @@ npm run build
 - Mission / long-term vision: `MISSION.md`
 - Project rules / guardrails: `AGENTS.md`
 - Module entrypoints: `daokin-api/README.md`, `daokin-web/README.md`, `contracts/README.md`
-- Acceptance criteria and verification artifacts: `references/`
+- MVP roadmap, acceptance criteria, and verification template: `docs/roadmap/mvp.md`
 
 ## License
 TBD.

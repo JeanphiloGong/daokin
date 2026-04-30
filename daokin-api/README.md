@@ -69,4 +69,4 @@ Environment variables (defaults shown):
 - System overview: [`../docs/system-overview.md`](../docs/system-overview.md)
 - Domain model: [`../docs/architecture/domain-model.md`](../docs/architecture/domain-model.md)
 - API contract: [`../docs/architecture/api-contract-v1.md`](../docs/architecture/api-contract-v1.md)
-- MVP acceptance baseline: [`../references/acceptance-criteria.md`](../references/acceptance-criteria.md)
+- MVP roadmap and acceptance baseline: [`../docs/roadmap/mvp.md`](../docs/roadmap/mvp.md)
