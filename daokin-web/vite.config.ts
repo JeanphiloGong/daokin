@@ -3,8 +3,19 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
 
+const apiProxyTarget = process.env.DAOKIN_API_PROXY_TARGET ?? 'http://localhost:8080';
+
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	server: {
+		proxy: {
+			'/api': {
+				target: apiProxyTarget,
+				changeOrigin: true,
+				rewrite: (path) => path.replace(/^\/api/, '')
+			}
+		}
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
