@@ -29,9 +29,10 @@ The MVP page defaults to mock API mode. To run against `daokin-api`, create `dao
 ```env
 PUBLIC_DAOKIN_API_MODE=http
 PUBLIC_DAOKIN_API_BASE_URL=/api
+DAOKIN_API_PROXY_TARGET=http://localhost:8080
 ```
 
-If the browser calls `daokin-api` on another origin directly, that API origin must allow the web dev origin through CORS.
+In local development, Vite proxies `/api/*` to `DAOKIN_API_PROXY_TARGET` and removes the `/api` prefix before forwarding to `daokin-api`. If the browser calls `daokin-api` on another origin directly instead of using the proxy, that API origin must allow the web dev origin through CORS.
 
 ## Build And Check
 
