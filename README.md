@@ -1,151 +1,47 @@
-# DaoKin（道友）
+# DaoKin
 
-**DaoKin — Where kin become Daos.**  
-**同道者聚，诸道自生。**
+这是从空项目开始的新产品开发入口。当前已建立本地Git仓库、API的Go模块，以及业务设计与教程规划；当前业务代码尚未实现，没有可运行的业务接口。代码远端为 [JeanphiloGong/daokin](https://github.com/JeanphiloGong/daokin)。
 
-DaoKin is a public experimental project exploring a user-owned model for creative work and communities. It treats an **Artifact** as a contribution that can be attributed, permissioned, and connected to value, while a **Dao** is a circle formed around a shared path or purpose.
+## 当前只做什么
 
-The project starts deliberately small: establish a verifiable artifact record and an attributable value-exchange primitive first, then evolve toward more portable and self-governed communities. The current repository is an early MVP foundation, not a production platform or a finished decentralized network.
+核心故事是：用户创建社区和作品，作者选择作品使用规则；需要资产的作品再发行作品份额，读者购买或接收份额后，按规则取得使用资格。
 
-> 中文简介：DaoKin（道友）探索“用户拥有的作品与共同体”。作品应当能够被归属、授权和结算价值，社区则围绕共同的道路与目的自然形成。当前仓库聚焦最小可验证闭环，先验证作品登记与可追溯的价值交换，再逐步推进自治与可迁移。
+先从稳定用户身份、社区与作品模型开始，后续逐步实现文章发布、有限阅读模板、资产供应与持仓、测试货币购买和转让。作品和资产分别建模，普通免费作品无需发行资产。版权和作者管理权的转移需要另外明确约定。
 
-## At a Glance
+商城、Console、商品订单、旧积分充值及旧论坛迁移不属于当前新产品MVP的依赖。旧系统按原目录保留；将来若明确需要复用旧账号或内容，再独立设计集成与迁移。
 
-| Area | Current position |
-| --- | --- |
-| Product focus | User-owned artifacts, attribution, permissioned use, and purpose-driven circles |
-| Current stage | Early prototype / MVP foundation |
-| Web client | SvelteKit scaffold; UI exploration has not yet been connected to domain flows |
-| API | Go + Chi service skeleton with health, readiness, and ping endpoints |
-| On-chain layer | Minimal Solidity contracts for artifact registration and tipping |
-| Contract status | Not audited; no production or mainnet deployment is claimed |
-| License | TBD |
-
-## Product Model
-
-### Artifacts
-
-An Artifact is off-chain content, such as a document, design, or piece of research, paired with an on-chain reference: a URI and a content hash. The reference is intended to make authorship and provenance easier to verify without placing the content itself on-chain.
-
-### Daos
-
-“The Dao of …” names a circle organized around a domain, practice, or shared purpose, such as **The Dao of Creation**. Dao membership, governance, and portability are product directions currently captured in the project plan; they are not implemented in this repository yet.
-
-### Permissioned use
-
-Using or reusing an Artifact should be explicit, attributable, and compatible with the creator’s terms. Consent records, licenses, and value splitting belong to the planned product layer rather than the current contract minimum.
-
-## What Exists Today
-
-### Web client: `daokin-web/`
-
-SvelteKit application scaffold for the future product interface. It currently provides the frontend development, checking, testing, and build toolchain; the default page has not yet been replaced with the DaoKin domain experience.
-
-### API: `daokin-api/`
-
-Go 1.22 service built with Chi. The current HTTP boundary includes:
-
-- `GET /healthz` — liveness response
-- `GET /readyz` — readiness response
-- `GET /v1/ping` — versioned connectivity check
-
-The server also includes request IDs, real-IP extraction, request logging, panic recovery, request timeouts, configurable bind address, and graceful shutdown. Domain APIs and persistence are future work.
-
-### Contracts: `contracts/`
-
-Hardhat project targeting Solidity `0.8.20` with two minimal contracts:
-
-- `ArtifactRegistry` records a creator, URI, content hash, and timestamp, then emits an `ArtifactPublished` event.
-- `TipJar` transfers native currency or an ERC-20 token directly to a recipient and emits a `Tipped` event with an optional memo.
-
-These contracts are intentionally small experiments. They do not yet implement permissions, licensing, governance, revenue splits, or upgradeability.
-
-The modules currently build independently. Application wiring between the web client, API, storage, wallet, and contracts is part of the next implementation stage.
-
-## Repository Structure
+## 当前目录
 
 ```text
-daokin/
-├── daokin-web/       # SvelteKit client scaffold
-├── daokin-api/       # Go + Chi HTTP service skeleton
-├── contracts/        # Hardhat project and Solidity contracts
-├── MISSION.md        # Long-term vision and manifesto
-├── MVP_PLAN.md       # MVP scope, acceptance criteria, and roadmap
-└── AGENTS.md         # Product and engineering guardrails
+daokin/                    # 一个本地Git仓库
+├── README.md
+├── .gitignore
+└── api/
+    └── go.mod             # 已初始化的Go模块
 ```
 
-## Quick Start
+教程独立维护于 [daokin-tutorial](https://github.com/JeanphiloGong/daokin-tutorial)；本地建议将两个仓库放在同级目录。教程仓库目前为私有，需要访问权限。
 
-The three modules run independently during this prototype stage. Use separate terminals when running more than one of them.
+前端和独立货币服务在对应实现阶段才创建。届时可在本仓库新增web/和currency/，Currency拥有自己的Go模块、进程和数据，服务通过明确接口协作。当前不预建空的多层业务目录，不引入go.work或共享包。
 
-### Web client
+## 从这里开始
+
+在本目录执行：
 
 ```bash
-cd daokin-web
-npm install
-npm run dev
+cd api
+go list -m
 ```
 
-Useful checks:
+输出为 `github.com/JeanphiloGong/daokin/api`。这是本仓库API的Go模块名称。当前没有业务Go文件，暂时没有可运行的服务或业务测试；写出首个完整业务能力后再运行相应检查。
 
-```bash
-npm run check
-npm run build
-```
+教程与代码分开存放。教程已编写V0–V6正文及逐篇源码，运行检查在隔离副本中进行；本仓库仍是初始化状态。入口：[新项目教程索引](https://github.com/JeanphiloGong/daokin-tutorial/blob/main/README.md)、[V0完整业务模型](https://github.com/JeanphiloGong/daokin-tutorial/blob/main/v0-domain-model.md)、[V0–V6实施方案](https://github.com/JeanphiloGong/daokin-tutorial/blob/main/plan.md)。从V1.1的身份与主动成员规则开始，按教程逐篇在本仓库实现。
 
-### API
+V1–V6实现正文位于同级教程目录，本仓库的业务代码尚未实现。旧V1–V8教程针对已有项目，不能把其patch直接应用到这里，也不能把旧教程测试结果算作本项目通过。商城、Console和旧论坛迁移不在当前主线。
 
-Requires Go 1.22 or later.
+## 验证
 
-```bash
-cd daokin-api
-go run ./cmd/api
-```
-
-By default the server listens on `:8080`:
-
-```bash
-curl http://localhost:8080/healthz
-curl http://localhost:8080/readyz
-curl http://localhost:8080/v1/ping
-```
-
-Configuration is documented in [`daokin-api/README.md`](daokin-api/README.md) and can be supplied through environment variables such as `DAOKIN_ADDR` and `DAOKIN_ENV`.
-
-### Contracts
-
-```bash
-cd contracts
-npm install
-npm run build
-```
-
-The contracts have no deployment target or audit report in this repository. Do not use them with real funds.
-
-## Development Direction
-
-The next product slices are planned around the core loop:
-
-1. Replace the web starter page with artifact and circle flows.
-2. Define API contracts and persistence for artifacts, ownership proofs, and membership intent.
-3. Connect wallet identity and off-chain storage such as IPFS or Arweave.
-4. Add explicit permission, attribution, and settlement records.
-5. Add contract tests and a security review before considering any public deployment.
-6. Explore portable communities and governance only after the core ownership and exchange flows are clear.
-
-The project intentionally avoids token speculation, attention-optimizing feeds, forced community formation, and irreversible central dependencies. See [`MVP_PLAN.md`](MVP_PLAN.md) for scope and acceptance criteria, and [`MISSION.md`](MISSION.md) for the long-term rationale.
-
-## Project Status and Safety
-
-- Breaking changes are expected while the MVP boundaries are being tested.
-- The smart contracts are not audited.
-- There is no claim of mainnet deployment, production usage, or real-value settlement.
-- Legal and compliance requirements for value exchange remain open questions.
-- The repository does not yet declare a license; `License: TBD` should be resolved before treating it as a reusable open-source package.
-
-## Project Rules
-
-Read [`AGENTS.md`](AGENTS.md) before changing product principles, ownership semantics, privacy assumptions, or governance rules. The subprojects also contain their own engineering guidance:
-
-- [`daokin-web/AGENTS.md`](daokin-web/AGENTS.md)
-- [`daokin-api/AGENTS.md`](daokin-api/AGENTS.md)
+- 当前main从初始化项目开始实现；旧版原型保存在 [legacy/prototype-2026-11-13](https://github.com/JeanphiloGong/daokin/tree/legacy/prototype-2026-11-13)，旧提交和议题继续保留。
+- 已确认API模块声明可解析，且未引入第三方依赖。
+- 已提供环境文件、密钥、依赖目录与构建输出的忽略规则。
+- 本次未添加业务抽象或兼容层；没有复制缓存或启动临时服务。

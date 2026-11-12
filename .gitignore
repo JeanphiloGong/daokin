@@ -1,32 +1,25 @@
-# OS
-.DS_Store
-Thumbs.db
-
-# Secrets / env (commit examples only)
+# Local environment and credentials
 **/.env
 **/.env.*
 !**/.env.example
-!**/.env.test
+!**/.env.*.example
+**/*.pem
+**/*.key
 
-# Node / frontend build artifacts
-**/node_modules/
-**/.svelte-kit/
-**/.output/
+# Go and application build output
+**/bin/
 **/build/
 **/dist/
+**/*.test
+**/*.out
+
+# Frontend dependencies and generated output
+**/node_modules/
+**/.svelte-kit/
 **/coverage/
 **/test-results/
-**/.vercel/
-**/.netlify/
-**/.wrangler/
-**/*.tsbuildinfo
-**/*.log
 
-# Hardhat
-**/artifacts/
-**/cache/
-
-# Go
-**/*.out
-**/*.test
-**/bin/
+# Local tooling records
+.agent-runs/
+*.log
+.DS_Store
