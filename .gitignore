@@ -15,11 +15,20 @@
 
 # Frontend dependencies and generated output
 **/node_modules/
-**/.svelte-kit/
+**/.next/
 **/coverage/
 **/test-results/
+
+# Foundry dependencies and generated output
+/chain/lib/
+/chain/out/
+/chain/cache/
+/chain/broadcast/
 
 # Local tooling records
 .agent-runs/
 *.log
 .DS_Store
+
+# TypeScript incremental check output
+*.tsbuildinfo
