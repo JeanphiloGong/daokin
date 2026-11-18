@@ -1,10 +1,10 @@
 # DaoKin
 
-这是 DaoKin 的开发仓库，远端为 [JeanphiloGong/daokin](https://github.com/JeanphiloGong/daokin)。当前完成顶层目录、Go 模块和 V1 身份分层目录初始化，业务功能仍需按教程逐步实现。
+这是 DaoKin 的开发仓库，远端为 [JeanphiloGong/daokin](https://github.com/JeanphiloGong/daokin)。当前完成 V1.1 的邮箱账号与会话领域模型。
 
 ## 当前只做什么
 
-核心故事是：用户证明钱包身份后，直接创建并发布自己的作品。免费作品可以公开阅读；选择持仓阅读的版本通过钱包发行作品资产，读者购买或接收份额后，按当前可信持仓取得后续阅读资格。
+用户验证邮箱并注册，再用邮箱和密码登录，直接创建并发布自己的作品。公开作品可匿名阅读。选择持仓阅读的版本通过钱包发行作品资产，读者购买或接收份额后，按当前可信持仓取得后续阅读资格。
 
 作品直接关联作者，不要求先创建或加入 Dao。社区另行设计。作品资产不自动转移版权或作者管理权；供应、余额、持仓与交割以链上合约为准，Currency 负责核验与索引。
 
@@ -20,9 +20,9 @@ daokin/                              # 一个 Git 仓库
 │   ├── go.mod
 │   └── internal/
 │       └── identity/                # V1 从身份模块开始
-│           ├── domain/              # 用户、挑战与会话规则
+│           ├── domain/              # 用户、邮箱归一与会话规则
 │           ├── application/         # 用例与所需接口
-│           ├── infrastructure/      # 存储与验签实现
+│           ├── infrastructure/      # 存储、邮件与钱包验签
 │           └── interfaces/http/     # 请求、响应与身份入口
 ├── currency/
 │   └── go.mod                       # 独立链上核验、索引服务的模块
@@ -53,7 +53,7 @@ API、Currency 的 domain/application 只包含业务规则与用例所需接口
 
 ## 从这里开始
 
-先完成 [V1.1：稳定身份、单次挑战与会话期限](../daokin-tutorial/v1-01-stable-identity.md)，将模型放入 `api/internal/identity/domain/`，再实现 V1.2 的存储、验签与 HTTP。本地未跟踪的 `api/internal/user.go` 是未完成的手写草稿，不属于本次初始化提交；迁入正确位置并完成实现后，应删除旧位置的草稿。
+当前代码对应 [V1.1 稳定账号与会话](../daokin-tutorial/v1-01-stable-identity.md)。在 `api/` 运行 `go test ./...`，可验证邮箱归一和会话到期。V1.2 接入验证码注册、密码登录、密码找回、PostgreSQL 和 HTTP。
 
 初始化阶段，在项目根检查已有模块声明：
 
@@ -63,12 +63,10 @@ for module in api currency contracts; do
 done
 ```
 
-该检查只证明模块声明有效。提交的骨架尚无业务 Go 包，没有可运行的服务或业务测试；若本地保留上述草稿，其未使用的 imports 会使 `cd api && go test ./...` 失败。
-
 | 阶段 | 增加的实际内容 |
 | --- | --- |
-| V1.1 | 身份、挑战、会话领域模型及检查 |
-| V1.2–V1.3 | 登录事务、HTTP、Web 登录与退出 |
+| V1.1 | 邮箱账号、会话领域模型及测试 |
+| V1.2–V1.3 | 邮箱验证注册、密码登录、找回密码和 Web 账号页面 |
 | V2 | work 模块、不可变发布版本、创作与阅读页面 |
 | V3 | 三合约、Proto、Currency、发行绑定与持仓阅读 |
 | V4–V6 | 购买、转让、本人工作台与完整验收 |
